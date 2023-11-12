@@ -123,11 +123,16 @@ public:
     **/
     db_pointer_type get (const QString& user, bool force_wait = false);
 
-    bool setSavepoint(const std::string& pointname = "RESTOREPOINT");
+    bool setSavepoint(const std::string& pointname = "RESTOREPOINT", bool unique = true);
     bool releaseSavepoint(const std::string& pointname = "RESTOREPOINT");
     bool revertToSavepoint(const std::string& pointname = "RESTOREPOINT");
     bool releaseAllSavepoints();
     bool revertAll();
+
+    // Set a non-unique savepoint for the general undoing mechanism (undoing only last write).
+    bool setUndoSavepoint() { return setSavepoint("UNDOPOINT", /* unique */ false); };
+    bool revertToUndoSavepoint() { return revertToSavepoint("UNDOPOINT"); };
+    bool releaseUndoSavepoint() { return releaseSavepoint("UNDOPOINT"); };
 
     bool dump(const QString& filename, const std::vector<std::string>& tablesToDump,
               bool insertColNames, bool insertNew, bool keepOriginal, bool exportSchema, bool exportData, bool keepOldSchema) const;

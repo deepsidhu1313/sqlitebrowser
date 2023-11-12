@@ -7,7 +7,7 @@
 #include "IconCache.h"
 #include "Data.h"
 
-#include <QFile>
+#include <QSaveFile>
 #include <QTextStream>
 #include <QMessageBox>
 #include <QTextCodec>
@@ -107,9 +107,9 @@ bool ExportDataDialog::exportQueryCsv(const std::string& sQuery, const QString& 
 
     // Chars that require escaping
     std::string special_chars = newlineStr.toStdString() + sepChar.toLatin1() + quoteChar.toLatin1();
-
+    bool writeError = false;
     // Open file
-    QFile file(sFilename);
+    QSaveFile file(sFilename);
     if(file.open(QIODevice::WriteOnly))
     {
         // Open text stream to the file
@@ -144,7 +144,7 @@ bool ExportDataDialog::exportQueryCsv(const std::string& sQuery, const QString& 
             QApplication::setOverrideCursor(Qt::WaitCursor);
             int columns = sqlite3_column_count(stmt);
             size_t counter = 0;
-            while(sqlite3_step(stmt) == SQLITE_ROW)
+            while(!writeError && sqlite3_step(stmt) == SQLITE_ROW)
             {
                 for (int i = 0; i < columns; ++i)
                 {
@@ -177,6 +177,7 @@ bool ExportDataDialog::exportQueryCsv(const std::string& sQuery, const QString& 
                 if(counter % 1000 == 0)
                     qApp->processEvents();
                 counter++;
+                writeError = stream.status() != QTextStream::Ok;
             }
         }
         sqlite3_finalize(stmt);
@@ -185,7 +186,17 @@ bool ExportDataDialog::exportQueryCsv(const std::string& sQuery, const QString& 
         qApp->processEvents();
 
         // Done writing the file
-        file.close();
+        if(!file.commit()) {
+            writeError = true;
+        }
+
+        if(writeError || file.error() != QFileDevice::NoError) {
+            QMessageBox::warning(this, QApplication::applicationName(),
+                                 tr("Error while writing the file '%1': %2")
+                                 .arg(sFilename, file.errorString()));
+            return false;
+        }
+
     } else {
         QMessageBox::warning(this, QApplication::applicationName(),
                              tr("Could not open output file: %1").arg(sFilename));
@@ -198,7 +209,7 @@ bool ExportDataDialog::exportQueryCsv(const std::string& sQuery, const QString& 
 bool ExportDataDialog::exportQueryJson(const std::string& sQuery, const QString& sFilename)
 {
     // Open file
-    QFile file(sFilename);
+    QSaveFile file(sFilename);
     if(file.open(QIODevice::WriteOnly))
     {
         auto pDb = pdb.get(tr("exporting JSON"));
@@ -274,12 +285,23 @@ bool ExportDataDialog::exportQueryJson(const std::string& sQuery, const QString&
 
         // Create JSON document
         file.write(json_table.dump(ui->checkPrettyPrint->isChecked() ? 4 : -1).c_str());
+        bool writeError = file.error() != QFileDevice::NoError;
 
         QApplication::restoreOverrideCursor();
         qApp->processEvents();
 
         // Done writing the file
-        file.close();
+        if(!file.commit()) {
+            writeError = true;
+        }
+
+        if(writeError || file.error() != QFileDevice::NoError) {
+          QMessageBox::warning(this, QApplication::applicationName(),
+                               tr("Error while writing the file '%1': %2")
+                               .arg(sFilename, file.errorString()));
+          return false;
+        }
+
     } else {
         QMessageBox::warning(this, QApplication::applicationName(),
                              tr("Could not open output file: %1").arg(sFilename));
@@ -311,6 +333,8 @@ void ExportDataDialog::accept()
         break;
     }
 
+    bool success = true;
+    
     if(!m_sQuery.empty())
     {
         // called from sqlexecute query tab
@@ -325,7 +349,7 @@ void ExportDataDialog::accept()
             return;
         }
 
-        exportQuery(m_sQuery, sFilename);
+        success = exportQuery(m_sQuery, sFilename);
     } else {
         // called from the File export menu
         const QList<QListWidgetItem*> selectedItems = ui->listTables->selectedItems();
@@ -378,7 +402,7 @@ void ExportDataDialog::accept()
             // if we are called from execute sql tab, query is already set
             // and we only export 1 select
             std::string sQuery = "SELECT * FROM " + sqlb::ObjectIdentifier(selectedItems.at(i)->data(Qt::UserRole).toString().toStdString()).toString() + ";";
-            exportQuery(sQuery, filenames.at(i));
+            success = exportQuery(sQuery, filenames.at(i)) && success;
         }
     }
 
@@ -390,7 +414,11 @@ void ExportDataDialog::accept()
     Settings::setValue("exportcsv", "newlinecharacters", currentNewLineString());
 
     // Notify the user the export has completed
-    QMessageBox::information(this, QApplication::applicationName(), tr("Export completed."));
+    if(success) {
+        QMessageBox::information(this, QApplication::applicationName(), tr("Export completed."));
+    } else {
+        QMessageBox::warning(this, QApplication::applicationName(), tr("Export finished with errors."));
+    }
     QDialog::accept();
 }
 

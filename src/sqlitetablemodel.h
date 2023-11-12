@@ -35,6 +35,7 @@ public:
 
     /// returns logical amount of rows, whether currently cached or not
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int realRowCount() const;
 
     int columnCount(const QModelIndex &parent = QModelIndex()) const override;
     size_t filterCount() const;
@@ -116,6 +117,9 @@ public:
     // can be edited. This makes a difference for generated columns which are in (editable) tables but cannot be modified anyway.
     bool isEditable(const QModelIndex& index = QModelIndex()) const;
 
+    // Custom display format set?
+    bool hasDisplayFormat (const QModelIndex& index) const;
+
     // Conditional formats are of two kinds: regular conditional formats (including condition-free formats applying to any value in the
     // column) and formats applying to a particular row-id and which have always precedence over the first kind and whose filter apply
     // to the row-id column.
@@ -188,6 +192,7 @@ private:
     /// the full row count, when the row-count query returns)
     RowCount m_rowCountAvailable;
     unsigned int m_currentRowCount;
+    unsigned int m_realRowCount;
 
     std::vector<std::string> m_headers;
 
@@ -228,12 +233,15 @@ private:
     QString m_blobText;
     QColor m_regFgColour;
     QColor m_regBgColour;
+    QColor m_formattedFgColour;
+    QColor m_formattedBgColour;
     QColor m_nullFgColour;
     QColor m_nullBgColour;
     QColor m_binFgColour;
     QColor m_binBgColour;
     QFont m_font;
     int m_symbolLimit;
+    int m_rowsLimit;
     bool m_imagePreviewEnabled;
 
     /**

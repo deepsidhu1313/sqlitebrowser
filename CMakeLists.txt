@@ -1,8 +1,28 @@
 cmake_minimum_required(VERSION 3.15)
 project(sqlitebrowser
-    VERSION 3.12.99
+    VERSION 3.13.99
     DESCRIPTION "GUI editor for SQLite databases"
 )
+
+# Fix behavior of CMAKE_CXX_STANDARD when targeting macOS.
+if(POLICY CMP0025)
+    # https://cmake.org/cmake/help/latest/policy/CMP0025.html
+    cmake_policy(SET CMP0025 NEW)
+endif()
+
+# Fix warning of AUTOMOC behavior
+if(POLICY CMP0071)
+    # https://cmake.org/cmake/help/latest/policy/CMP0071.html
+    cmake_policy(SET CMP0071 NEW)
+endif()
+
+# Fix warning of Cached Variables
+if(POLICY CMP0102)
+    # https://cmake.org/cmake/help/latest/policy/CMP0102.html
+    cmake_policy(SET CMP0102 NEW)
+endif()
+
+include(GNUInstallDirs)
 
 OPTION(BUILD_STABLE_VERSION "Don't build the stable version by default" OFF) # Choose between building a stable version or nightly (the default), depending on whether '-DBUILD_STABLE_VERSION=1' is passed on the command line or not.
 OPTION(ENABLE_TESTING "Enable the unit tests" OFF)
@@ -11,10 +31,7 @@ OPTION(FORCE_INTERNAL_QCUSTOMPLOT "Don't use distribution's QCustomPlot even if 
 OPTION(FORCE_INTERNAL_QHEXEDIT "Don't use distribution's QHexEdit even if available" ON)
 OPTION(ALL_WARNINGS "Enable some useful warning flags" OFF)
 OPTION(sqlcipher "Build with SQLCipher library" OFF)
-
-# BUILD_VERSION is the current date in YYYYMMDD format. It is only
-# used by the nightly version to add the date of the build.
-string(TIMESTAMP BUILD_VERSION "%Y%m%d")
+OPTION(customTap "Using SQLCipher, SQLite and Qt installed through our custom Homebrew tap" OFF)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -30,11 +47,26 @@ else()
     add_executable(${PROJECT_NAME})
 endif()
 
-# BUILD_VERSION is the current date in YYYYMMDD format. It is only
-# used by the nightly version to add the date of the build.
-string(TIMESTAMP BUILD_VERSION "%Y%m%d")
+# Determine the git commit hash
+execute_process(
+    COMMAND git rev-parse --short --verify HEAD
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+
+if (GIT_COMMIT_HASH STREQUAL "")
+    MESSAGE(WARNING "Could not determine git commit hash")
+    set(GIT_COMMIT_HASH "Unknown")
+endif()
+
+add_definitions(-DGIT_COMMIT_HASH="${GIT_COMMIT_HASH}")
 
 if(NOT BUILD_STABLE_VERSION)
+    # BUILD_VERSION is the current date in YYYYMMDD format. It is only
+    # used by the nightly version to add the date of the build.
+    # Default defined in Version.h.in
+    string(TIMESTAMP BUILD_VERSION "%Y%m%d")
     target_compile_definitions(${PROJECT_NAME} PRIVATE BUILD_VERSION=${BUILD_VERSION})
 endif()
 
@@ -42,17 +74,6 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}"
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release")
-endif()
-
-# Fix behavior of CMAKE_CXX_STANDARD when targeting macOS.
-if(POLICY CMP0025)
-    cmake_policy(SET CMP0025 NEW)
-endif()
-
-# Fix warning of AUTOMOC behavior
-if(POLICY CMP0071)
-    # https://cmake.org/cmake/help/latest/policy/CMP0071.html
-    cmake_policy(SET CMP0071 NEW)
 endif()
 
 if(MSVC)
@@ -85,20 +106,31 @@ if(MSVC)
     list(PREPEND CMAKE_PREFIX_PATH ${QT5_PATH} ${SQLITE3_PATH})
 endif()
 
-# See https://github.com/Homebrew/homebrew-core/issues/8392#issuecomment-325226494
-if(APPLE AND EXISTS /usr/local/opt/qt5)
-    # Homebrew installs Qt5 (up to at least 5.9.1) in
-    # /usr/local/qt5, ensure it can be found by CMake since
-    # it is not in the default /usr/local prefix.
-    list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/qt5")
-endif()
 
-# For M1 Mac's
-if(APPLE AND EXISTS /opt/homebrew/opt/qt5)
-    list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/qt5")
-endif()
-if(APPLE AND EXISTS /opt/homebrew/opt/sqlitefts5)
-    list(PREPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/sqlitefts5")
+if(APPLE)
+    # For Intel Mac's
+    if(EXISTS /usr/local/opt/qt5)
+        list(APPEND CMAKE_PREFIX_PATH "/usr/local/opt/qt5")
+    endif()
+
+    # For Apple Silicon Mac's
+    if(EXISTS /opt/homebrew/opt/qt5)
+        list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/qt5")
+    endif()
+    if(EXISTS /opt/homebrew/opt/sqlitefts5)
+        list(PREPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/sqlitefts5")
+    endif()
+
+    # For Apple Silicon Mac's and install dependencies via our Homebrew tap(sqlitebrowser/homebrew-tap)
+    if(customTap AND EXISTS /opt/homebrew/opt/)
+        list(PREPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/db4subqt@5")
+        list(PREPEND CMAKE_PREFIX_PATH "/opt/homebrew/opt/db4subsqlitefts@5")
+
+        if(sqlcipher)
+            list(APPEND SQLCIPHER_INCLUDE_DIR "/opt/homebrew/include")
+            list(APPEND SQLCIPHER_LIBRARY "/opt/homebrew/opt/db4subsqlcipher/lib/libsqlcipher.0.dylib")
+        endif()
+    endif()
 endif()
 
 find_package(Qt5 REQUIRED COMPONENTS Concurrent Gui LinguistTools Network PrintSupport Test Widgets Xml)
@@ -331,6 +363,7 @@ set(SQLB_TSS
     "${CMAKE_SOURCE_DIR}/src/translations/sqlb_ja.ts"
     "${CMAKE_SOURCE_DIR}/src/translations/sqlb_nl.ts"
     "${CMAKE_SOURCE_DIR}/src/translations/sqlb_sv.ts"
+    "${CMAKE_SOURCE_DIR}/src/translations/sqlb_id.ts"
 )
 
 # Windows image format plugin files
@@ -480,8 +513,8 @@ endif()
 
 if((NOT WIN32 AND NOT APPLE) OR MINGW)
     install(TARGETS ${PROJECT_NAME}
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
 endif()
 
@@ -495,27 +528,27 @@ endif()
 
 if(UNIX)
     install(FILES src/icons/${PROJECT_NAME}.png
-        DESTINATION share/icons/hicolor/256x256/apps/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps/
     )
 
     install(FILES images/logo.svg
-        DESTINATION share/icons/hicolor/scalable/apps/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps/
         RENAME ${PROJECT_NAME}.svg
     )
 
     install(FILES distri/${PROJECT_NAME}.desktop
-        DESTINATION share/applications/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications/
     )
 
     install(FILES distri/${PROJECT_NAME}.desktop.appdata.xml
-        DESTINATION share/metainfo/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo/
     )
 endif()
 
 if(WIN32 AND MSVC)
     install(TARGETS ${PROJECT_NAME}
         RUNTIME DESTINATION "/"
-        LIBRARY DESTINATION lib
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     )
 
     set(QT5_BIN_PATH ${QT5_PATH}/bin)
@@ -599,6 +632,8 @@ if(WIN32 AND MSVC)
 endif()
 
 if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15)
+    set(ENV{MACOSX_DEPLOYMENT_TARGET} 10.15)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         BUNDLE True
         OUTPUT_NAME "DB Browser for SQLite"

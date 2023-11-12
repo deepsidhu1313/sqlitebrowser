@@ -37,10 +37,15 @@ void FilterTableHeader::generateFilters(size_t number, size_t number_of_hidden_f
     filterWidgets.clear();
 
     // And generate a bunch of new ones
-    for(size_t i=0;i < number; ++i)
+    for(size_t i=0; i < number; ++i)
     {
         FilterLineEdit* l = new FilterLineEdit(this, &filterWidgets, i);
         l->setVisible(i >= number_of_hidden_filters);
+
+        // Set as focus proxy the first non-row-id visible filter-line.
+        if(i!=0 && l->isVisible() && !focusProxy())
+            setFocusProxy(l);
+
         connect(l, &FilterLineEdit::delayedTextChanged, this, &FilterTableHeader::inputChanged);
         connect(l, &FilterLineEdit::filterFocused, this, [this](){emit filterFocused();});
         connect(l, &FilterLineEdit::addFilterAsCondFormat, this, &FilterTableHeader::addFilterAsCondFormat);
@@ -94,6 +99,7 @@ void FilterTableHeader::adjustPositions()
 
 void FilterTableHeader::inputChanged(const QString& new_value)
 {
+    adjustPositions();
     // Just get the column number and the new value and send them to anybody interested in filter changes
     emit filterChanged(sender()->property("column").toUInt(), new_value);
 }
@@ -131,4 +137,10 @@ void FilterTableHeader::setFilter(size_t column, const QString& value)
 QString FilterTableHeader::filterValue(size_t column) const
 {
     return filterWidgets[column]->text();
+}
+
+void FilterTableHeader::setFocusColumn(size_t column)
+{
+    if(column < filterWidgets.size())
+        filterWidgets.at(column)->setFocus();
 }

@@ -358,6 +358,34 @@ TableBrowser::TableBrowser(DBBrowserDB* _db, QWidget* parent) :
         find(ui->editFindExpression->text(), true, true, ReplaceMode::ReplaceAll);
     });
 
+    QShortcut* shortcutActionFilter = new QShortcut(QKeySequence("Ctrl+Shift+F"), this, nullptr, nullptr, Qt::WidgetWithChildrenShortcut);
+    connect(shortcutActionFilter, &QShortcut::activated, this, [this](){
+        // Restore cursor because in the ExtendedTableWidget it is changed to a hand when Ctrl+Shift
+        // is pressed.
+        QApplication::restoreOverrideCursor();
+        FilterTableHeader* header = qobject_cast<FilterTableHeader*>(ui->dataTable->horizontalHeader());
+        // Set the focus to the current column if valid, otherwise, set focus to the first visible
+        // column.
+        if(!header) {
+            ui->dataTable->horizontalHeader()->setFocus();
+        } else if(currentIndex().isValid()) {
+            header->setFocusColumn(static_cast<size_t>(currentIndex().column()));
+        } else {
+            for(int col = 0; col < ui->dataTable->model()->columnCount(); col++)
+            {
+                if(!ui->dataTable->isColumnHidden(col)) {
+                    header->setFocusColumn(static_cast<size_t>(col));
+                    break;
+                }
+            }
+        }
+    });
+
+    QShortcut* shortcutActionGlobalFilter = new QShortcut(QKeySequence("Ctrl+Alt+F"), this, nullptr, nullptr, Qt::WidgetWithChildrenShortcut);
+    connect(shortcutActionGlobalFilter, &QShortcut::activated, this, [this](){
+        ui->editGlobalFilter->setFocus();
+    });
+
     // Recreate the model
     if(m_model)
         delete m_model;
@@ -525,7 +553,6 @@ void TableBrowser::refresh()
     // Build query and apply settings
    applyModelSettings(storedData, buildQuery(storedData, tablename));
    applyViewportSettings(storedData, tablename);
-   updateRecordsetLabel();
    emit updatePlot(ui->dataTable, m_model, &m_settings[tablename], true);
 }
 
@@ -699,6 +726,7 @@ void TableBrowser::updateRecordsetLabel()
     // Get all the numbers, i.e. the number of the first row and the last row as well as the total number of rows
     int from = ui->dataTable->verticalHeader()->visualIndexAt(0) + 1;
     int total = m_model->rowCount();
+    int real_total = m_model->realRowCount();
     int to = from + ui->dataTable->numVisibleRows() - 1;
     if(to < 0)
             to = 0;
@@ -729,10 +757,13 @@ void TableBrowser::updateRecordsetLabel()
         txt = tr("determining row count...");
         break;
     case SqliteTableModel::RowCount::Partial:
-        txt = tr("%1 - %2 of >= %3").arg(from).arg(to).arg(total);
+        txt = tr("%L1 - %L2 of >= %L3").arg(from).arg(to).arg(total);
         break;
     case SqliteTableModel::RowCount::Complete:
-        txt = tr("%1 - %2 of %3").arg(from).arg(to).arg(total);
+        txt = tr("%L1 - %L2 of %L3").arg(from).arg(to).arg(real_total);
+        if (real_total != total) {
+            txt.append(tr(" (clipped at %L1 rows)").arg(total));
+        }
         break;
     }
     ui->labelRecordset->setText(txt);

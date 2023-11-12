@@ -5,7 +5,7 @@ MKDIR "%DEST_PATH%"
 SET ZIP_EXE="C:\Program Files\7-Zip\7z.exe"
 SET SQLITE_DIR=C:\\dev\\SQLite-Win32
 SET SQLCIPHER_ROOT_DIR=C:\\git_repos\\SQLCipher-Win32
-SET SQLCIPHER_TAG=v4.4.2
+SET SQLCIPHER_TAG=v4.5.5
 
 :: You need to change the date format in Windows settings to YYYY-MM-DD
 :: before this will work properly. ;)
@@ -67,7 +67,7 @@ CALL "C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary
 
 :: Build SQLite x86
 CD %SQLITE_DIR%
-cl sqlite3.c -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_STAT4 -DSQLITE_SOUNDEX -DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_GEOPOLY -DSQLITE_ENABLE_RTREE -DSQLITE_MAX_ATTACHED=125 -DSQLITE_API=__declspec(dllexport) -link -dll -out:sqlite3.dll
+cl sqlite3.c -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_STAT4 -DSQLITE_SOUNDEX -DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_GEOPOLY -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_MATH_FUNCTIONS -DSQLITE_MAX_ATTACHED=125 -DSQLITE_API=__declspec(dllexport) -link -dll -out:sqlite3.dll
 
 :: Build extensions
 COPY C:\git_repos\sqlitebrowser\src\extensions\extension-functions.c
@@ -130,12 +130,12 @@ RMDIR /S /Q %CD%\zip
 :: Save the last commit hash to 'commit.txt' and upload it to the nightlies server
 CD C:\\git_repos\\sqlitebrowser
 git rev-parse --verify HEAD 1>C:\\builds\\commit.txt
-pscp -q -p -i C:\dev\puttygen_private.ppk "%DEST_PATH%\commit.txt" nightlies@nightlies.sqlitebrowser.org:/nightlies/win32
+pscp -q -p -load nightlies "%DEST_PATH%\commit.txt" nightlies@nightlies.sqlitebrowser.org:/nightlies/win32
 
 :: Upload the packages to the nightlies server
-pscp -q -p -i C:\dev\puttygen_private.ppk "%DEST_PATH%\DB*%RUN_DATE%*win32.*" nightlies@nightlies.sqlitebrowser.org:/nightlies/win32
+pscp -q -p -load nightlies "%DEST_PATH%\DB*%RUN_DATE%*win32.*" nightlies@nightlies.sqlitebrowser.org:/nightlies/win32
 
 :: Copy the new binaries to /latest directory on the nightlies server
-plink -i C:\dev\puttygen_private.ppk nightlies@nightlies.sqlitebrowser.org "cd /nightlies/latest; rm -f *-win32.*"
-plink -i C:\dev\puttygen_private.ppk nightlies@nightlies.sqlitebrowser.org "cp /nightlies/win32/DB*SQLite-%RUN_DATE%-win32.msi /nightlies/latest/DB.Browser.for.SQLite-win32.msi"
-plink -i C:\dev\puttygen_private.ppk nightlies@nightlies.sqlitebrowser.org "cp /nightlies/win32/DB*SQLite-%RUN_DATE%-win32.zip /nightlies/latest/DB.Browser.for.SQLite-win32.zip"
+plink -load nightlies -batch "cd /nightlies/latest; rm -f *-win32.*"
+plink -load nightlies -batch "cp /nightlies/win32/DB*SQLite-%RUN_DATE%-win32.msi /nightlies/latest/DB.Browser.for.SQLite-win32.msi"
+plink -load nightlies -batch "cp /nightlies/win32/DB*SQLite-%RUN_DATE%-win32.zip /nightlies/latest/DB.Browser.for.SQLite-win32.zip"

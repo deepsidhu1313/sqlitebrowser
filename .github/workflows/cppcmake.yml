@@ -2,71 +2,35 @@ name: CI
 
 on:
   push:
-    branches: ['*']
-    tags:
-    paths_ignore: ['docs/**']
+    branches: [ master ]
   pull_request:
-    branches: ['*']
   release:
-    types: ['created']
+    types: [ created ]
+  workflow_dispatch:
 
-defaults:
-  run:
-    shell: bash
+permissions:
+  contents: write
 
 jobs:
-  build:
-    name: ${{ matrix.os }} - SQLCipher ${{ matrix.sqlcipher }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: true
-      matrix:
-        os: [ubuntu-20.04]
-        sqlcipher: ["0", "1"]
+  cleanup:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Install dependencies
-      run: |
-           sudo apt-get update
-           sudo apt-get install qttools5-dev libqt5scintilla2-dev libqcustomplot-dev libsqlite3-dev libqt5svg5 libsqlcipher-dev
-    - name: Configure CMake
-      run: |
-           cmake --version
-           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_INSTALL_PREFIX=${PWD}/install \
-                -DCPACK_PACKAGE_DIRECTORY=${PWD}/package \
-                -DENABLE_TESTING=ON \
-                -Dsqlcipher=${{ matrix.sqlcipher }}
-    - name: Run make
-      run: cmake --build build --config Release -j --target install
-    - name: run tests
-      run: ctest -V -C Release --test-dir build
-    - name: Package
-      run: |
-           cmake --build build --config Release -j --target package
-           cmake -E remove_directory package/_CPack_Packages
-    - name: Upload package
-      uses: actions/upload-artifact@master
-      with:
-        name: pkg-${{ matrix.os }}-sqlcipher${{ matrix.sqlcipher }}
-        path: package
-    - name: Upload to release page
-      if: github.event_name == 'release'
-      env:
-        GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-        TAG: ${{ github.event.release.tag_name }}
-        UPLOAD_URL: ${{ github.event.release.upload_url }}
-      run: |
-              # Do try this at home! The REST API is documented at
-              # https://docs.github.com/en/free-pro-team@latest/rest and you can get a personal
-              # access token at https://github.com/settings/tokens
-              # (set GITHUB_TOKEN to "bearer abcdef1234")
-              # you can get the UPLOAD_URL with a short bash snippet; make sure to set the env var TAG:
-              # UPLOAD_URL=$(curl -H 'Accept: application/vnd.github.v3+json' $GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases/tags/$TAG | jq -r .upload_url)
-              UPLOAD_URL=${UPLOAD_URL%\{*} # remove "{name,label}" suffix
-              for pkg in package/*.*; do
-                NAME=$(basename $pkg)
-                MIME=$(file --mime-type $pkg|cut -d ' ' -f2)
-                curl -X POST -H "Accept: application/vnd.github.v3+json" -H "Authorization: token $GITHUB_TOKEN" -H "Content-Type: $MIME" --data-binary @$pkg $UPLOAD_URL?name=$NAME
-              done
+      - name: Delete continuous release and tag
+        uses: dev-drprasad/delete-tag-and-release@v1.0
+        with:
+          delete_release: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: continuous
+
+  appimage:
+    if: github.event_name != 'pull_request'
+    uses: ./.github/workflows/build-appimage.yml
+
+  build-macos:
+    uses: ./.github/workflows/build-macos.yml
+    secrets: inherit
+
+  build-ubuntu:
+    uses: ./.github/workflows/build-ubuntu.yml
+    secrets: inherit

@@ -564,7 +564,7 @@ void DBBrowserDB::getSqliteVersion(QString& sqlite, QString& sqlcipher)
 #endif
 }
 
-bool DBBrowserDB::setSavepoint(const std::string& pointname)
+bool DBBrowserDB::setSavepoint(const std::string& pointname, bool unique)
 {
     if(!isOpen())
         return false;
@@ -572,7 +572,7 @@ bool DBBrowserDB::setSavepoint(const std::string& pointname)
         qWarning() << "setSavepoint: not done. DB is read-only";
         return false;
     }
-    if(contains(savepointList, pointname))
+    if(unique && contains(savepointList, pointname))
         return true;
 
     executeSQL("SAVEPOINT " + sqlb::escapeIdentifier(pointname) + ";", false, true);
@@ -1045,7 +1045,7 @@ bool DBBrowserDB::dump(const QString& filePath,
 
         QApplication::restoreOverrideCursor();
         qApp->processEvents();
-        return true;
+        return stream.status() == QTextStream::Ok && file.error() == QFileDevice::NoError;
     }
     return false;
 }
@@ -1795,6 +1795,11 @@ bool DBBrowserDB::alterTable(const sqlb::ObjectIdentifier& tablename, const sqlb
         // Ignore deleted fields
         QString to = track_columns[from];
         if(to.isNull())
+            continue;
+
+        // Ignore generated columns
+        auto it = sqlb::findField(new_table, to.toStdString());
+        if(it->generated())
             continue;
 
         copy_values_from.push_back(from.toStdString());

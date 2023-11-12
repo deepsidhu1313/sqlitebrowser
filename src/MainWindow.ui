@@ -47,10 +47,10 @@
       </property>
       <widget class="QWidget" name="structure">
        <property name="accessibleName">
-        <string extracomment="This has to be equal to the tab title in all the main tabs">Database Structure</string>
+        <string extracomment="This has to be equal to the tab title in all the main tabs">&amp;Database Structure</string>
        </property>
        <attribute name="title">
-        <string>Database Structure</string>
+        <string>&amp;Database Structure</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout">
         <property name="spacing">
@@ -82,6 +82,8 @@
           <addaction name="editDeleteObjectAction"/>
           <addaction name="separator"/>
           <addaction name="actionDbPrint"/>
+          <addaction name="separator"/>
+          <addaction name="actionRefreshStructure"/>
          </widget>
         </item>
         <item>
@@ -115,10 +117,10 @@ You can drag SQL statements from an object row and drop them into other applicat
       </widget>
       <widget class="QWidget" name="browser">
        <property name="accessibleName">
-        <string extracomment="This has to be equal to the tab title in all the main tabs">Browse Data</string>
+        <string extracomment="This has to be equal to the tab title in all the main tabs">&amp;Browse Data</string>
        </property>
        <attribute name="title">
-        <string>Browse Data</string>
+        <string>&amp;Browse Data</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <property name="spacing">
@@ -150,10 +152,10 @@ You can drag SQL statements from an object row and drop them into other applicat
       </widget>
       <widget class="QWidget" name="pragmas">
        <property name="accessibleName">
-        <string extracomment="This has to be equal to the tab title in all the main tabs">Edit Pragmas</string>
+        <string extracomment="This has to be equal to the tab title in all the main tabs">Edit P&amp;ragmas</string>
        </property>
        <attribute name="title">
-        <string>Edit Pragmas</string>
+        <string>Edit P&amp;ragmas</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_4">
         <property name="spacing">
@@ -181,8 +183,8 @@ You can drag SQL statements from an object row and drop them into other applicat
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>673</width>
-             <height>544</height>
+             <width>640</width>
+             <height>526</height>
             </rect>
            </property>
            <layout class="QFormLayout" name="formLayout">
@@ -683,10 +685,10 @@ You can drag SQL statements from an object row and drop them into other applicat
       </widget>
       <widget class="QWidget" name="query">
        <property name="accessibleName">
-        <string extracomment="This has to be equal to the tab title in all the main tabs">Execute SQL</string>
+        <string extracomment="This has to be equal to the tab title in all the main tabs">E&amp;xecute SQL</string>
        </property>
        <attribute name="title">
-        <string>Execute SQL</string>
+        <string>E&amp;xecute SQL</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <property name="spacing">
@@ -751,7 +753,7 @@ You can drag SQL statements from an object row and drop them into other applicat
      <x>0</x>
      <y>0</y>
      <width>1037</width>
-     <height>23</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="fileMenu">
@@ -790,6 +792,7 @@ You can drag SQL statements from an object row and drop them into other applicat
     <addaction name="separator"/>
     <addaction name="fileSaveAction"/>
     <addaction name="fileRevertAction"/>
+    <addaction name="undoAction"/>
     <addaction name="separator"/>
     <addaction name="menuImport"/>
     <addaction name="menuExport"/>
@@ -842,7 +845,7 @@ You can drag SQL statements from an object row and drop them into other applicat
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
-     <string>&amp;Tools</string>
+     <string>Too&amp;ls</string>
     </property>
     <addaction name="fileCompactAction"/>
     <addaction name="actionEncryption"/>
@@ -880,6 +883,7 @@ You can drag SQL statements from an object row and drop them into other applicat
    <addaction name="separator"/>
    <addaction name="fileSaveAction"/>
    <addaction name="fileRevertAction"/>
+   <addaction name="undoAction"/>
   </widget>
   <widget class="QDockWidget" name="dockEdit">
    <property name="windowTitle">
@@ -891,9 +895,6 @@ You can drag SQL statements from an object row and drop them into other applicat
    <widget class="QWidget" name="dockWidgetContents_4"/>
   </widget>
   <widget class="QDockWidget" name="dockLog">
-   <property name="features">
-    <set>QDockWidget::AllDockWidgetFeatures</set>
-   </property>
    <property name="windowTitle">
     <string>SQL &amp;Log</string>
    </property>
@@ -1035,9 +1036,6 @@ You can drag SQL statements from an object row and drop them into other applicat
    </widget>
   </widget>
   <widget class="QDockWidget" name="dockPlot">
-   <property name="features">
-    <set>QDockWidget::AllDockWidgetFeatures</set>
-   </property>
    <property name="windowTitle">
     <string>&amp;Plot</string>
    </property>
@@ -1167,6 +1165,9 @@ You can drag SQL statements from the Schema column and drop them into the SQL ed
    <property name="text">
     <string>&amp;New Database...</string>
    </property>
+   <property name="iconText">
+    <string>&amp;New Database</string>
+   </property>
    <property name="toolTip">
     <string>Create a new database file</string>
    </property>
@@ -1253,6 +1254,30 @@ You can drag SQL statements from the Schema column and drop them into the SQL ed
    </property>
    <property name="whatsThis">
     <string>This option is used to revert the current database file to its last saved state. All changes made since the last save operation are lost.</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::NoRole</enum>
+   </property>
+  </action>
+  <action name="undoAction">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="icons/icons.qrc">
+     <normaloff>:/icons/undo.svg</normaloff>:/icons/undo.svg</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Undo</string>
+   </property>
+   <property name="toolTip">
+    <string>Undo last change to the database</string>
+   </property>
+   <property name="statusTip">
+    <string>Undo last change to the database</string>
+   </property>
+   <property name="whatsThis">
+    <string>This action undoes the last change performed to the database in the Database Browser or in Execute SQL. Redoing is not possible.</string>
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
@@ -1686,6 +1711,9 @@ You can drag SQL statements from the Schema column and drop them into the SQL ed
    <property name="text">
     <string>Sa&amp;ve Project</string>
    </property>
+   <property name="iconText">
+    <string>&amp;Save Project</string>
+   </property>
    <property name="toolTip">
     <string>Save the current session to a file</string>
    </property>
@@ -1706,6 +1734,9 @@ You can drag SQL statements from the Schema column and drop them into the SQL ed
    </property>
    <property name="text">
     <string>Open &amp;Project...</string>
+   </property>
+   <property name="iconText">
+    <string>Open &amp;Project</string>
    </property>
    <property name="toolTip">
     <string>Load a working session from a file</string>
@@ -1978,6 +2009,9 @@ You can drag SQL statements from the Schema column and drop them into the SQL ed
    </property>
    <property name="text">
     <string>&amp;Open Database...</string>
+   </property>
+   <property name="iconText">
+    <string>&amp;Open Database</string>
    </property>
    <property name="toolTip">
     <string>Open an existing database file</string>
@@ -2284,6 +2318,18 @@ You can drag SQL statements from the Schema column and drop them into the SQL ed
     <string>Save the current database as a different file</string>
    </property>
   </action>
+  <action name="actionRefreshStructure">
+   <property name="icon">
+    <iconset resource="icons/icons.qrc">
+     <normaloff>:/icons/refresh</normaloff>:/icons/refresh</iconset>
+   </property>
+   <property name="text">
+    <string>Refresh</string>
+   </property>
+   <property name="toolTip">
+    <string>Reload the database structure</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -2511,6 +2557,22 @@ You can drag SQL statements from the Schema column and drop them into the SQL ed
    <signal>triggered()</signal>
    <receiver>MainWindow</receiver>
    <slot>fileRevert()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>undoAction</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>undo()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>-1</x>
@@ -3866,6 +3928,22 @@ You can drag SQL statements from the Schema column and drop them into the SQL ed
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>actionRefreshStructure</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>refresh()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>518</x>
+     <y>314</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>fileOpen()</slot>
@@ -3879,6 +3957,7 @@ You can drag SQL statements from the Schema column and drop them into the SQL ed
   <slot>importTableFromCSV()</slot>
   <slot>exportTableToCSV()</slot>
   <slot>fileRevert()</slot>
+  <slot>undo()</slot>
   <slot>fileSave()</slot>
   <slot>deleteIndex()</slot>
   <slot>createIndex()</slot>
