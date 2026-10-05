@@ -6,7 +6,9 @@
 
 #include <memory>
 #include <vector>
+
 #include <QMainWindow>
+#include <QFileSystemWatcher>
 
 struct BrowseDataTableSettings;
 class DbStructureModel;
@@ -14,7 +16,6 @@ class EditDialog;
 class ExtendedTableWidget;
 class FindReplaceDialog;
 class PlotDock;
-class RemoteDock;
 class RunSql;
 class SqliteTableModel;
 class TableBrowser;
@@ -96,6 +97,7 @@ private:
     static int MaxRecentFiles;
     QVector<QAction*> recentFileActs;
     QAction* clearRecentFilesAction;
+    QAction* optionToAutoLoadLastDBFileAtStartup;
     QAction* recentSeparatorAct;
 
     /**
@@ -110,7 +112,6 @@ private:
 
     EditDialog* editDock;
     PlotDock* plotDock;
-    RemoteDock* remoteDock;
     TableBrowser* currentTableBrowser;
     FindReplaceDialog* findReplaceDialog;
 
@@ -122,11 +123,14 @@ private:
     QString currentProjectFilename;
     bool isProjectModified;
 
+    QFileSystemWatcher fileSystemWatch;
+
     void init();
     void clearCompleterModelsFields();
 
     void updateRecentFileActions();
     void clearRecentFiles();
+    void toggleAutoLoadLastDBFileAtStartupOption();
     void setCurrentFile(const QString& fileName);
     void addToRecentFilesMenu(const QString& filename, bool read_only = false);
     void activateFields(bool enable = true);
@@ -138,7 +142,7 @@ private:
     QString saveOpenTabs();
     void saveProject(const QString& currentFilename);
     bool closeProject();
-    bool askSaveSqlTab(int index, bool& ignoreUnattachedBuffers);
+    bool askSaveSqlTab(int index, bool& ignoreUnattachedBuffers, bool singleTabClose = false);
     void focusSqlEditor();
     void moveDocksTo(Qt::DockWidgetArea area);
 
@@ -146,6 +150,7 @@ private:
     sqlb::ObjectIdentifier currentlyBrowsedTableName() const;
 
     QList<TableBrowserDock*> allTableBrowserDocks() const;
+    void getSelectedObject(QString &type, sqlb::ObjectIdentifier& obj);
 
 protected:
     void closeEvent(QCloseEvent *) override;
@@ -170,10 +175,12 @@ public slots:
 private slots:
     void createTreeContextMenu(const QPoint & qPoint);
     void createSchemaDockContextMenu(const QPoint & qPoint);
-    void changeTreeSelection();
+    void changeObjectSelection();
     void fileNew();
     void fileNewInMemoryDatabase(bool open_create_dialog = true);
-    void refreshTableBrowsers();
+    // Refresh visible table browsers. When all is true, refresh all browsers.
+    void refreshTableBrowsers(bool all = false);
+    void refreshDb();
     bool fileClose();
     bool fileSaveAs();
     void createTable();
@@ -210,7 +217,8 @@ private slots:
     void saveSqlResultsAsJson();
     void saveSqlResultsAsView();
     void loadExtension();
-    void checkNewVersion(const QString& versionstring, const QString& url);
+    void checkNewVersion(const bool automatic);
+    void compareVersionAndShowDialog(const QString& versionstring, const QString& url, const bool automatic);
     void openLinkWiki() const;
     void openLinkBugReport() const;
     void openLinkFeatureRequest() const;
@@ -240,6 +248,7 @@ private slots:
     void openUrlOrFile(const QString& urlString);
     void newRowCountsTab();
 
+    void markTabsModified();
     int openSqlTab(bool resetCounter = false);
     void closeSqlTab(int index, bool force = false, bool askSaving = true);
     void changeSqlTab(int index);

@@ -32,7 +32,8 @@ TableBrowser::TableBrowser(DBBrowserDB* _db, QWidget* parent) :
     dbStructureModel(nullptr),
     m_model(nullptr),
     m_adjustRows(false),
-    m_columnsResized(false)
+    m_columnsResized(false),
+    m_columnSearchLastFoundIndex(-1)
 {
     ui->setupUi(this);
 
@@ -82,7 +83,7 @@ TableBrowser::TableBrowser(DBBrowserDB* _db, QWidget* parent) :
     });
 
     // Set up shortcuts
-    QShortcut* dittoRecordShortcut = new QShortcut(QKeySequence("Ctrl+\""), this);
+    QShortcut* dittoRecordShortcut = new QShortcut(QKeySequence("Ctrl+\""), this, nullptr, nullptr, Qt::WidgetWithChildrenShortcut);
     connect(dittoRecordShortcut, &QShortcut::activated, this, [this]() {
         int currentRow = ui->dataTable->currentIndex().row();
         duplicateRecord(currentRow);
@@ -309,6 +310,8 @@ TableBrowser::TableBrowser(DBBrowserDB* _db, QWidget* parent) :
     connect(ui->actionFind, &QAction::triggered, this, [this](bool checked) {
        if(checked)
        {
+           ui->frameColumnSearch->hide();
+           ui->actionFindColumn->setChecked(false);
            ui->widgetReplace->hide();
            ui->frameFind->show();
            ui->editFindExpression->setFocus();
@@ -323,6 +326,8 @@ TableBrowser::TableBrowser(DBBrowserDB* _db, QWidget* parent) :
     connect(ui->actionReplace, &QAction::triggered, this, [this](bool checked) {
        if(checked)
        {
+           ui->frameColumnSearch->hide();
+           ui->actionFindColumn->setChecked(false);
            ui->widgetReplace->show();
            ui->frameFind->show();
            ui->editFindExpression->setFocus();
@@ -381,7 +386,7 @@ TableBrowser::TableBrowser(DBBrowserDB* _db, QWidget* parent) :
         }
     });
 
-    QShortcut* shortcutActionGlobalFilter = new QShortcut(QKeySequence("Ctrl+Alt+F"), this, nullptr, nullptr, Qt::WidgetWithChildrenShortcut);
+    QShortcut* shortcutActionGlobalFilter = new QShortcut(QKeySequence("F3"), this, nullptr, nullptr, Qt::WidgetWithChildrenShortcut);
     connect(shortcutActionGlobalFilter, &QShortcut::activated, this, [this](){
         ui->editGlobalFilter->setFocus();
     });
@@ -393,6 +398,39 @@ TableBrowser::TableBrowser(DBBrowserDB* _db, QWidget* parent) :
 
     // Connect slots
     connect(m_model, &SqliteTableModel::finishedFetch, this, &TableBrowser::fetchedData);
+
+    // Set up column search frame
+    ui->frameColumnSearch->hide();
+
+    connect(ui->actionFindColumn, &QAction::triggered, this, [this](bool checked) {
+        if(checked) {
+            ui->frameFind->hide();
+            ui->actionFind->setChecked(false);
+            ui->actionReplace->setChecked(false);
+            ui->frameColumnSearch->show();
+            ui->editColumnSearchExpression->setFocus();
+        } else {
+            ui->frameColumnSearch->hide();
+        } 
+    });
+
+    connect(ui->buttonColumnSearchClose, &QToolButton::clicked, this, [this]() {
+        ui->frameColumnSearch->hide();
+        ui->actionFindColumn->setChecked(false); 
+    });
+
+    connect(ui->editColumnSearchExpression, &QLineEdit::returnPressed, ui->buttonColumnSearchNext, &QToolButton::click);
+    connect(ui->editColumnSearchExpression, &QLineEdit::textChanged, this, [this]() {
+        findNextColumn(true, true); 
+    });
+
+    connect(ui->buttonColumnSearchNext, &QToolButton::clicked, this, [this]() {
+        findNextColumn(true, false); 
+    });
+
+    connect(ui->buttonColumnSearchPrevious, &QToolButton::clicked, this, [this]() {
+        findNextColumn(false, false); 
+    });
 
     // Load initial settings
     reloadSettings();
@@ -536,6 +574,15 @@ void TableBrowser::refresh()
         });
     }
 
+    // Delete settings of no-longer existent tables
+    for (auto it = m_settings.cbegin(); it != m_settings.cend(); ) {
+        if (!db->getTableByName(it->first)) {
+            it = m_settings.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     // Retrieve the stored data for this table if there is any. If there are no settings for this table,
     // this will insert and return a settings object with default values.
     const sqlb::ObjectIdentifier tablename = currentlyBrowsedTableName();
@@ -551,9 +598,12 @@ void TableBrowser::refresh()
     emit currentTableChanged(tablename);
 
     // Build query and apply settings
-   applyModelSettings(storedData, buildQuery(storedData, tablename));
-   applyViewportSettings(storedData, tablename);
-   emit updatePlot(ui->dataTable, m_model, &m_settings[tablename], true);
+    applyModelSettings(storedData, buildQuery(storedData, tablename));
+    applyViewportSettings(storedData, tablename);
+    emit updatePlot(ui->dataTable, m_model, &m_settings[tablename], true);
+    
+    // Reset the last found index for column search
+    m_columnSearchLastFoundIndex = -1;
 }
 
 void TableBrowser::clearFilters()
@@ -724,6 +774,7 @@ void TableBrowser::modifyFormat(std::function<void(CondFormat&)> changeFunction)
 void TableBrowser::updateRecordsetLabel()
 {
     // Get all the numbers, i.e. the number of the first row and the last row as well as the total number of rows
+    // Internal row numbers start at 0, but we want to show them starting at 1.
     int from = ui->dataTable->verticalHeader()->visualIndexAt(0) + 1;
     int total = m_model->rowCount();
     int real_total = m_model->realRowCount();
@@ -733,7 +784,7 @@ void TableBrowser::updateRecordsetLabel()
 
     // Adjust visible rows to contents if necessary, and then take the new visible rows, which might have changed.
     if(m_adjustRows) {
-        for(int i=from; i<=to; i++)
+        for(int i=from-1; i<=to-1; i++)
             ui->dataTable->resizeRowToContents(i);
         from = ui->dataTable->verticalHeader()->visualIndexAt(0) + 1;
         to = from + ui->dataTable->numVisibleRows() - 1;
@@ -1323,7 +1374,7 @@ void TableBrowser::addRecord()
         selectTableLine(row);
     } else {
         // Error inserting empty row.
-        // User has to provide values acomplishing the constraints. Open Add Record Dialog.
+        // User has to provide values accomplishing the constraints. Open Add Record Dialog.
         insertValues();
     }
     updateRecordsetLabel();
@@ -1571,7 +1622,12 @@ void TableBrowser::jumpToRow(const sqlb::ObjectIdentifier& table, std::string co
 static QString replaceInValue(QString value, const QString& find, const QString& replace, Qt::MatchFlags flags)
 {
     // Helper function which replaces a string in another string by a third string. It uses regular expressions if told so.
-    if(flags.testFlag(Qt::MatchRegExp))
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
+    auto match_flag = Qt::MatchRegExp;
+#else
+    auto match_flag = Qt::MatchRegularExpression;
+#endif
+    if(flags.testFlag(match_flag))
     {
         QRegularExpression reg_exp(find, (flags.testFlag(Qt::MatchCaseSensitive) ? QRegularExpression::NoPatternOption : QRegularExpression::CaseInsensitiveOption));
         if(!flags.testFlag(Qt::MatchContains))
@@ -1616,8 +1672,13 @@ void TableBrowser::find(const QString& expr, bool forward, bool include_first, R
     else
         flags |= Qt::MatchContains;
 
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
+    auto match_flag = Qt::MatchRegExp;
+#else
+    auto match_flag = Qt::MatchRegularExpression;
+#endif
     if(ui->checkFindRegEx->isChecked())
-        flags |= Qt::MatchRegExp;
+        flags |= match_flag;
 
     // Prepare list of columns to search in. We only search in non-hidden rows
     std::vector<int> column_list;
@@ -1694,6 +1755,76 @@ void TableBrowser::find(const QString& expr, bool forward, bool include_first, R
     }
 }
 
+void TableBrowser::findNextColumn(bool forward, bool checkCurrentColumn)
+{
+    if (!m_model)
+        return;
+
+    const QString searchText = ui->editColumnSearchExpression->text();
+    if (searchText.isEmpty())
+    {
+        ui->editColumnSearchExpression->setStyleSheet(QString());
+        return;
+    }
+
+    const Qt::CaseSensitivity caseSensitivity = ui->checkColumnSearchCaseSensitive->isChecked()
+                                                    ? Qt::CaseSensitive
+                                                    : Qt::CaseInsensitive;
+
+    const int columnCount = m_model->columnCount();
+    if (columnCount <= 0)
+        return;
+
+    auto tryMatch = [&](int i) -> bool
+    {
+        if (ui->dataTable->isColumnHidden(i))
+            return false;
+
+        const QString columnName = m_model->headerData(i, Qt::Horizontal, Qt::EditRole).toString();
+        if (!columnName.contains(searchText, caseSensitivity))
+            return false;
+
+        m_columnSearchLastFoundIndex = i;
+        ui->editColumnSearchExpression->setStyleSheet(QString());
+
+        QModelIndex top = m_model->index(0, i);
+        QModelIndex bottom = m_model->index(m_model->rowCount() - 1, i);
+        ui->dataTable->selectionModel()->select(QItemSelection(top, bottom),
+            QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Columns);
+
+        ui->dataTable->horizontalScrollBar()->setValue(ui->dataTable->horizontalHeader()->sectionViewportPosition(i));
+        return true;
+    };
+
+    if (m_columnSearchLastFoundIndex < 0 || m_columnSearchLastFoundIndex >= columnCount)
+        m_columnSearchLastFoundIndex = forward ? -1 : columnCount;
+    else if (checkCurrentColumn && tryMatch(m_columnSearchLastFoundIndex))
+        return;
+
+    if (forward)
+    {
+        for (int i = m_columnSearchLastFoundIndex + 1; i < columnCount; i++)
+            if (tryMatch(i))
+                return;
+
+        for (int i = 0; i < m_columnSearchLastFoundIndex; i++)
+            if (tryMatch(i))
+                return;
+    }
+    else
+    {
+        for (int i = m_columnSearchLastFoundIndex - 1; i >= 0; i--)
+            if (tryMatch(i))
+                return;
+
+        for (int i = columnCount - 1; i > m_columnSearchLastFoundIndex; i--)
+            if (tryMatch(i))
+                return;
+    }
+
+    ui->editColumnSearchExpression->setStyleSheet("QLineEdit {color: white; background-color: rgb(255, 102, 102)}");
+}
+
 void TableBrowser::fetchedData()
 {
     updateRecordsetLabel();
@@ -1704,11 +1835,13 @@ void TableBrowser::fetchedData()
         return;
     m_columnsResized = true;
 
-    // Set column widths according to their contents but make sure they don't exceed a certain size
-    ui->dataTable->resizeColumnsToContents();
-    for(int i = 0; i < m_model->columnCount(); i++)
-    {
-        if(ui->dataTable->columnWidth(i) > 300)
-            ui->dataTable->setColumnWidth(i, 300);
+    if (m_settings[currentlyBrowsedTableName()].columnWidths.empty()) {
+        // Set column widths according to their contents but make sure they don't exceed a certain size
+        ui->dataTable->resizeColumnsToContents();
+        for(int i = 0; i < m_model->columnCount(); i++)
+        {
+            if(ui->dataTable->columnWidth(i) > 300)
+                ui->dataTable->setColumnWidth(i, 300);
+        }
     }
 }

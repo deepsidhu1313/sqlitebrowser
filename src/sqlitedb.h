@@ -228,35 +228,14 @@ public:
      */
     bool alterTable(const sqlb::ObjectIdentifier& tablename, const sqlb::Table& new_table, AlterTableTrackColumns track_columns, std::string newSchemaName = std::string());
 
-    const sqlb::TablePtr getTableByName(const sqlb::ObjectIdentifier& name) const
-    {
-        if(schemata.empty() || name.schema().empty())
-            return sqlb::TablePtr{};
-        const auto& schema = schemata.at(name.schema());
-        if(schema.tables.count(name.name()))
-            return schema.tables.at(name.name());
-        return sqlb::TablePtr{};
-    }
+    // Given that sqlite3 does not allow case-differing identifiers, and in some
+    // situations the stored name in `schemata` may differ only in case from the name used in
+    // the stored SQL create statement (like issue #4110), the search of these get*Name
+    // functions is case-insensitive, if not found as is.
 
-    const sqlb::IndexPtr getIndexByName(const sqlb::ObjectIdentifier& name) const
-    {
-        if(schemata.empty() || name.schema().empty())
-            return sqlb::IndexPtr{};
-        const auto& schema = schemata.at(name.schema());
-        if(schema.indices.count(name.name()))
-            return schema.indices.at(name.name());
-        return sqlb::IndexPtr{};
-    }
-
-    const sqlb::TriggerPtr getTriggerByName(const sqlb::ObjectIdentifier& name) const
-    {
-        if(schemata.empty() || name.schema().empty())
-            return sqlb::TriggerPtr{};
-        const auto& schema = schemata.at(name.schema());
-        if(schema.triggers.count(name.name()))
-            return schema.triggers.at(name.name());
-        return sqlb::TriggerPtr{};
-    }
+    const sqlb::TablePtr getTableByName(const sqlb::ObjectIdentifier& name) const;
+    const sqlb::IndexPtr getIndexByName(const sqlb::ObjectIdentifier& name) const;
+    const sqlb::TriggerPtr getTriggerByName(const sqlb::ObjectIdentifier& name) const;
 
     bool isOpen() const;
     bool encrypted() const { return isEncrypted; }
@@ -271,6 +250,12 @@ public:
     bool setPragma(const std::string& pragma, const QString& value);
     bool setPragma(const std::string& pragma, const QString& value, QString& originalvalue);
     bool setPragma(const std::string& pragma, int value, int& originalvalue);
+
+    // These are the two pragmas in SQLite which require values passed as text.
+    // Values follow the order of the SQLite documentation.
+    // Use these values for setPragma().
+    static const QStringList journalModeValues;
+    static const QStringList lockingModeValues;
 
     bool loadExtension(const QString& filename);
     void loadExtensionsFromSettings();

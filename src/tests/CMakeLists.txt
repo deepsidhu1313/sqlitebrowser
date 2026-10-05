@@ -1,6 +1,14 @@
 include_directories("${CMAKE_CURRENT_BINARY_DIR}" ..)
 
-find_package(Qt5 REQUIRED COMPONENTS Test Widgets)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
+find_package(${QT_MAJOR} REQUIRED COMPONENTS Test Widgets)
+if(QT_MAJOR STREQUAL "Qt6")
+    find_package(Qt6 REQUIRED COMPONENTS Core5Compat)
+    set(QT5_COMPAT Qt6::Core5Compat)
+endif()
 
 # test-sqlobjects
 
@@ -26,8 +34,8 @@ set(TESTSQLOBJECTS_HDR
 )
 
 add_executable(test-sqlobjects ${TESTSQLOBJECTS_HDR} ${TESTSQLOBJECTS_SRC})
-target_link_libraries(test-sqlobjects Qt5::Test)
-add_test(test-sqlobjects test-sqlobjects)
+target_link_libraries(test-sqlobjects ${QT_MAJOR}::Test)
+add_test(NAME test-sqlobjects COMMAND $<TARGET_FILE:test-sqlobjects>)
 
 # test-import
 
@@ -41,8 +49,8 @@ set(TESTIMPORT_MOC_HDR
 )
 
 add_executable(test-import ${TESTIMPORT_MOC_HDR} ${TESTIMPORT_SRC})
-target_link_libraries(test-import Qt5::Test)
-add_test(test-import test-import)
+target_link_libraries(test-import ${QT_MAJOR}::Test)
+add_test(NAME test-import COMMAND $<TARGET_FILE:test-import>)
 
 # test regex
 
@@ -57,8 +65,8 @@ set(TESTREGEX_HDR
 )
 
 add_executable(test-regex ${TESTREGEX_HDR} ${TESTREGEX_SRC})
-target_link_libraries(test-regex Qt5::Test Qt5::Widgets)
-add_test(test-regex test-regex)
+target_link_libraries(test-regex ${QT_MAJOR}::Test ${QT_MAJOR}::Widgets ${QT5_COMPAT})
+add_test(NAME test-regex COMMAND $<TARGET_FILE:test-regex>)
 
 # test cache
 
@@ -71,5 +79,5 @@ set(TESTCACHE_HDR
 )
 
 add_executable(test-cache ${TESTCACHE_HDR} ${TESTCACHE_SRC})
-target_link_libraries(test-cache Qt5::Test)
-add_test(test-cache test-cache)
+target_link_libraries(test-cache ${QT_MAJOR}::Test)
+add_test(NAME test-cache COMMAND $<TARGET_FILE:test-cache>)

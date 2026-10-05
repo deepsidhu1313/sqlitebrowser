@@ -24,9 +24,10 @@
   - [Wiki](#wiki)
   - [Continuous, Nightly builds](#continuous-nightly-builds)
   - [Windows](#windows)
+      - [Continuous, Nightly builds](#continuous-nightly-builds-1)
   - [macOS](#macos)
       - [Stable release](#stable-release)
-      - [Continuous, Nightly builds](#continuous-nightly-builds-1)
+      - [Continuous, Nightly builds](#continuous-nightly-builds-2)
   - [Linux](#linux)
     - [Arch Linux](#arch-linux)
     - [Debian](#debian)
@@ -40,6 +41,8 @@
   - [Snap packages](#snap-packages)
       - [Snap Nightlies](#snap-nightlies)
       - [Snap Stable](#snap-stable)
+  - [Nix Packages](#nix-packages)
+    - [Flox](#flox)
   - [Compiling](#compiling)
   - [X (Known as Twitter)](#x-known-as-twitter)
   - [Website](#website)
@@ -86,11 +89,10 @@ https://github.com/sqlitebrowser/sqlitebrowser/wiki.
 
 ## Continuous, Nightly builds
 
-Download continuous builds for AppImage and macOS here:
+Download continuous builds for AppImage, macOS and Windows here:
 
 * https://github.com/sqlitebrowser/sqlitebrowser/releases/tag/continuous
 > Note: A continuous build is generated when a new commit is added to the `master` branch.<br>
-> Builds for Windows are not currently available. but there are plans to add them in 2023.
 
 Download nightly builds for Windows and macOS here:
 
@@ -114,9 +116,19 @@ Or use winget:
 winget install -e --id DBBrowserForSQLite.DBBrowserForSQLite
 ```
 
-**Note:** If for some reason the standard Windows release does not work
-(e.g. gives an error), try a [nightly build](https://github.com/sqlitebrowser/sqlitebrowser?tab=readme-ov-file#nightly-builds). Nightly builds often fix bugs
-reported after the last release. :D
+Or use scoop:
+```
+scoop install sqlitebrowser
+```
+
+#### Continuous, Nightly builds
+
+Continuous builds are available here:
+
+* https://github.com/sqlitebrowser/sqlitebrowser/releases/tag/continuous
+
+Nightly builds are available here:
+* https://nightlies.sqlitebrowser.org/latest
 
 ## macOS
 
@@ -130,7 +142,7 @@ Download macOS releases here:
 
 * https://sqlitebrowser.org/dl/#macos
 
-The latest macOS binary can be installed via [Homebrew Cask](https://caskroom.github.io/ "Homebrew Cask"):
+The latest macOS binary can be installed via [Homebrew Cask](https://formulae.brew.sh/cask/db-browser-for-sqlite "Homebrew Cask"):
 
 ```
 brew install --cask db-browser-for-sqlite
@@ -145,7 +157,7 @@ Continuous builds are available here:
 Nightly builds are available here:
 * https://nightlies.sqlitebrowser.org/latest
 
-and also you can be installed via [Homebrew Cask](https://caskroom.github.io/ "Homebrew Cask"):
+and also you can be installed via [Homebrew Cask](https://formulae.brew.sh/cask/db-browser-for-sqlite "Homebrew Cask"):
 
 ```
 brew tap homebrew/cask-versions
@@ -258,12 +270,28 @@ or this command:
 
 #### Snap Nightlies
 
-     snap install sqlitebrowser --devmode
+     snap install sqlitebrowser --edge
 
 #### Snap Stable
 
      snap install sqlitebrowser
 
+## Nix Packages
+
+`sqlitebrowser` is packaged and available in nixpkgs.
+It can be used with the experimental flakes and nix-command features with:
+
+    nix profile install nixpkgs#sqlitebrowser
+
+Or with the `nix-env` or `nix-shell` commands:
+
+    nix-shell -p sqlitebrowser
+
+### Flox
+
+`sqlitebrowser` can be installed into a Flox environment with.
+
+    flox install sqlitebrowser
 
 ## Compiling
 
@@ -284,6 +312,8 @@ Follow us on X: https://x.com/sqlitebrowser
 
 ## Releases
 
+* [Version 3.13.1 released](https://github.com/sqlitebrowser/sqlitebrowser/releases/tag/v3.13.1) - 2024-10-16
+* [Version 3.13.0 released](https://github.com/sqlitebrowser/sqlitebrowser/releases/tag/v3.13.0) - 2024-07-23
 * [Version 3.12.2 released](https://github.com/sqlitebrowser/sqlitebrowser/releases/tag/v3.12.2) - 2021-05-18
 * [Version 3.12.1 released](https://github.com/sqlitebrowser/sqlitebrowser/releases/tag/v3.12.1) - 2020-11-09
 * [Version 3.12.0 released](https://github.com/sqlitebrowser/sqlitebrowser/releases/tag/v3.12.0) - 2020-06-16
@@ -356,12 +386,7 @@ View the list by going to the [__Contributors__ tab](https://github.com/sqlitebr
 
 ## License
 
-DB Browser for SQLite is bi-licensed under the Mozilla Public License
-Version 2, as well as the GNU General Public License Version 3 or later.
-
-Modification or redistribution is permitted under the conditions of these licenses.
-
-Check `LICENSE-PLUGINS` for other rights regarding included third-party resources.
+See the [LICENSE](LICENSE) file for licensing information.
 
   [gitter-img]: https://badges.gitter.im/sqlitebrowser/sqlitebrowser.svg
   [gitter]: https://gitter.im/sqlitebrowser/sqlitebrowser

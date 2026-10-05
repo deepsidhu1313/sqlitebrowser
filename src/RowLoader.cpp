@@ -1,4 +1,5 @@
 #include <QDebug>
+#include <QRegularExpression>
 
 #include "RowLoader.h"
 #include "sqlite.h"
@@ -220,8 +221,9 @@ void RowLoader::process (Task & t)
         // that lazy population is disabled for more queries than necessary. We should fix this once
         // we have a parser for SELECT statements but until then it is better to disable lazy population
         // for more statements than required instead of failing to run some statements entirely.
-        if(queryTemp.contains(QRegExp("LIMIT\\s+.+\\s*((,|\\b(OFFSET)\\b)\\s*.+\\s*)?$", Qt::CaseInsensitive)) ||
-                queryTemp.contains(QRegExp("\\s(UNION)|(INTERSECT)|(EXCEPT)\\s", Qt::CaseInsensitive)))
+
+        if(queryTemp.contains(QRegularExpression("LIMIT\\s+.+\\s*((,|\\b(OFFSET)\\b)\\s*.+\\s*)?$", QRegularExpression::CaseInsensitiveOption)) ||
+                queryTemp.contains(QRegularExpression("\\s(UNION)|(INTERSECT)|(EXCEPT)\\s", QRegularExpression::CaseInsensitiveOption)))
             sLimitQuery = queryTemp;
         else
             sLimitQuery = queryTemp + QString(" LIMIT %1 OFFSET %2;").arg(t.row_end-t.row_begin).arg(t.row_begin);
@@ -233,7 +235,8 @@ void RowLoader::process (Task & t)
     auto row = t.row_begin;
     if(sqlite3_prepare_v2(pDb.get(), utf8Query, utf8Query.size(), &stmt, nullptr) == SQLITE_OK)
     {
-        while(!t.cancel && sqlite3_step(stmt) == SQLITE_ROW)
+        int step_result = SQLITE_OK;
+        while(!t.cancel && (step_result = sqlite3_step(stmt)) == SQLITE_ROW)
         {
             size_t num_columns = static_cast<size_t>(sqlite3_data_count(stmt));
 
@@ -253,6 +256,11 @@ void RowLoader::process (Task & t)
             }
             std::lock_guard<std::mutex> lk(cache_mutex);
             cache_data.set(row++, std::move(rowdata));
+        }
+
+        if (step_result != SQLITE_ROW && step_result != SQLITE_DONE && step_result != SQLITE_OK && !t.cancel) {
+            QString errorMsg = QString::fromUtf8(sqlite3_errmsg(pDb.get()));
+            emit error(t.token, errorMsg);
         }
 
         sqlite3_finalize(stmt);

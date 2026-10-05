@@ -8,6 +8,8 @@
         <file alias="down">bullet_arrow_down.svg</file>
         <file alias="arrow_top">bullet_arrow_top.svg</file>
         <file alias="up">bullet_arrow_up.svg</file>
+        <file alias="right">bullet_arrow_right.svg</file>
+        <file alias="left">bullet_arrow_left.svg</file>
         <file alias="cancel">cancel.svg</file>
         <file alias="function">chart_curve.svg</file>
         <file alias="clear_filters">funnel_delete.svg</file>
@@ -48,9 +50,10 @@
         <file alias="field_delete">page_delete.svg</file>
         <file alias="field_edit">page_edit.svg</file>
         <file alias="find">page_find.svg</file>
+        <file alias="find_column">page_find_column.svg</file>
         <file alias="field">page_green.svg</file>
         <file alias="field_key">page_key.svg</file>
-        <file alias="browser_open">page_link.svg</file>
+        <file alias="browser_open">world_link.svg</file>
         <file alias="background_color">page_white_color.svg</file>
         <file alias="paste">page_paste.svg</file>
         <file alias="save_sql">page_save.svg</file>
@@ -98,6 +101,7 @@
         <file alias="text_bold">text_bold.svg</file>
         <file alias="text_italic">text_italic.svg</file>
         <file alias="text_indent">text_padding_left.svg</file>
+		<file alias="text_sort_ascending">text_sort_ascending.svg</file>
         <file alias="comment_block">text_padding_top.svg</file>
         <file alias="foreground_color">color_wheel.svg</file>
         <file alias="text_replace">find_edit.svg</file>

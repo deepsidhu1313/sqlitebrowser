@@ -159,6 +159,14 @@ QVariant Settings::getDefaultValue(const std::string& group, const std::string& 
     if(group == "db" && name == "fontsize")
         return 10;
 
+    // db/watcher?
+    if(group == "db" && name == "watcher")
+        return false;
+
+    // db/sqlcipherparentdotenvlookup?
+    if(group == "db" && name == "sqlcipherparentdotenvlookup")
+        return false;
+
     // exportcsv/firstrowheader?
     if(group == "exportcsv" && name == "firstrowheader")
         return true;
@@ -235,6 +243,10 @@ QVariant Settings::getDefaultValue(const std::string& group, const std::string& 
     if(group == "General" && name == "maxRecentFiles")
         return 5;
 
+    // General/recentfileshortcuts?
+    if(group == "General" && name == "recentfileshortcuts")
+        return false;
+
     // General/language?
     if(group == "General" && name == "language")
         return QLocale::system().name();
@@ -303,8 +315,12 @@ QVariant Settings::getDefaultValue(const std::string& group, const std::string& 
             return 1000;
         if(name == "image_preview")
             return false;
+        if(name == "cell_word_wrap")
+            return true;
         if(name == "indent_compact")
             return false;
+        if (name == "sort_keys")
+          return true;
         if(name == "auto_switch_mode")
             return true;
         if(name == "editor_word_wrap")
@@ -433,27 +449,14 @@ QVariant Settings::getDefaultValue(const std::string& group, const std::string& 
         if(name == "dropSelectQuery")
             return true;
 
+        if(name == "dropInsert")
+            return false;
+
         if(name == "dropQualifiedNames")
             return false;
 
         if(name == "dropEnquotedNames")
             return true;
-    }
-
-    // Remote settings?
-    if(group == "remote")
-    {
-        // Enable the File → Remote menu by default
-        if(name == "active")
-            return true;
-
-        // Clone directory
-        if(name == "clonedirectory")
-#if QT_VERSION >= QT_VERSION_CHECK(5, 4, 0)
-            return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-#else
-            return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
-#endif
     }
 
     // Proxy settings

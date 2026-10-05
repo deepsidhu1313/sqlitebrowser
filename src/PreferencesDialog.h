@@ -5,7 +5,6 @@
 
 class QTreeWidgetItem;
 class QFrame;
-class QSslCertificate;
 class QAbstractButton;
 
 class ProxyDialog;
@@ -25,8 +24,7 @@ public:
         TabDatabase,
         TabDataBrowser,
         TabSql,
-        TabExtensions,
-        TabRemote
+        TabExtensions
     };
 
     explicit PreferencesDialog(QWidget* parent = nullptr, Tabs tab = TabGeneral);
@@ -39,11 +37,8 @@ private slots:
     void chooseLocation();
     void showColourDialog(QTreeWidgetItem* item, int column);
     void addExtension();
+    void createBuiltinExtensionList();
     void removeExtension();
-    void activateRemoteTab(bool active);
-    void addClientCertificate();
-    void removeClientCertificate();
-    void chooseRemoteCloneDirectory();
     void updatePreviewFont();
     void adjustColorsToStyle(int style);
     void configureProxy();
@@ -62,7 +57,6 @@ private:
     void loadColorSetting(QFrame *frame, const std::string& name);
     void setColorSetting(QFrame* frame, const QColor &color);
     void saveColorSetting(QFrame* frame, const std::string& name);
-    void addClientCertToTable(const QString& path, const QSslCertificate& cert);
     void exportSettings();
     void importSettings();
 

@@ -9,7 +9,6 @@
 #include <QFileInfo>
 #include <QProxyStyle>
 #include <QStyleOption>
-#include <QDesktopWidget>
 #include <QScreen>
 
 #include "Application.h"
@@ -272,7 +271,7 @@ Application::Application(int& argc, char** argv) :
             if(QFile::exists(arguments().at(i)))
                 fileToOpen = arguments().at(i);
             else
-                qWarning() << qPrintable(tr("Invalid option/non-existant file: %1").arg(arguments().at(i)));
+                qWarning() << qPrintable(tr("Invalid option/non-existent file: %1").arg(arguments().at(i)));
         }
     }
 
@@ -284,6 +283,9 @@ Application::Application(int& argc, char** argv) :
     // Set StyleProxy
     QScreen *screen = primaryScreen();
     setStyle(new DB4SProxyStyle(18, screen != nullptr ? screen->logicalDotsPerInch() : 96, style()));
+
+    // Skip db/project autoLoadLastDBFileAtStartup if we have file passed from the cli
+    Settings::setValue("tmp", "fileWillBeOpenedFromCLI", !fileToOpen.isEmpty(), false);
 
     // Show main window
     m_mainWindow = new MainWindow();
@@ -328,6 +330,7 @@ Application::~Application()
 {
     if(m_mainWindow)
         delete m_mainWindow;
+    Settings::sync();
 }
 
 bool Application::event(QEvent* event)

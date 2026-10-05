@@ -6,6 +6,7 @@
 #include <chrono>
 #include <QApplication>
 #include <QMessageBox>
+#include <QRegularExpression>
 
 RunSql::RunSql(DBBrowserDB& _db, QString query, int execute_from_position, int _execute_to_position, bool _interrupt_after_statements) :
     db(_db),
@@ -30,8 +31,8 @@ RunSql::RunSql(DBBrowserDB& _db, QString query, int execute_from_position, int _
     // All replacements in the query should be made by the same amount of characters, so the positions in the file
     // for error indicators and line and column logs are not displaced.
     // Whitespace and comments are discarded by SQLite, so it is better to just let it ignore them.
-    query = query.replace(QRegExp("^(\\s*)BEGIN TRANSACTION;", Qt::CaseInsensitive), "\\1                  ");
-    query = query.replace(QRegExp("COMMIT;(\\s*)$", Qt::CaseInsensitive), "       \\1");
+    query = query.replace(QRegularExpression("^(\\s*)BEGIN TRANSACTION;", QRegularExpression::CaseInsensitiveOption), "\\1                  ");
+    query = query.replace(QRegularExpression("COMMIT;(\\s*)$", QRegularExpression::CaseInsensitiveOption), "       \\1");
 
     // Convert query to byte array which we will use from now on, starting from the determined start position and
     // until the end of the SQL code. By doing so we go further than the determined end position because in Line
@@ -103,6 +104,22 @@ bool RunSql::executeNextStatement()
     auto time_end_prepare = std::chrono::high_resolution_clock::now();
     auto time_for_prepare_in_ms = std::chrono::duration_cast<std::chrono::milliseconds>(time_end_prepare - time_start);
 
+    // If there was no actual statement (e.g. empty line or comments), SQLite returns SQLITE_OK but vm is nullptr.
+    // We can safely skip execution of this block.
+    if (sql3status == SQLITE_OK && !vm)
+    {
+        lk.lock();
+        releaseDbAccess();
+
+        execute_current_position = end_of_current_statement_position;
+        if(execute_current_position >= execute_to_position)
+        {
+            stopExecution();
+            return false;
+        }
+        return true;
+    }
+
     // Execute prepared statement
     QString error;
     if (sql3status == SQLITE_OK)
@@ -116,7 +133,8 @@ bool RunSql::executeNextStatement()
                                   query_type == DropStatement ||
                                   query_type == RollbackStatement ||
                                   query_type == AttachStatement ||
-                                  query_type == DetachStatement))
+                                  query_type == DetachStatement ||
+                                  query_type == AnalyzeStatement))
             structure_updated = true;
 
         // Check whether this is trying to set a pragma or to vacuum the database
@@ -129,13 +147,18 @@ bool RunSql::executeNextStatement()
                 // Ask user, then check if we should abort execution or continue with it. We depend on a BlockingQueueConnection here which makes sure to
                 // block this worker thread until the slot function in the main thread is completed and could tell us about its decision.
                 emit confirmSaveBeforePragmaOrVacuum();
-                if(!queries_left_to_execute.isEmpty())
+                // We know user's answer because stopExecution will set execution_to_position to 0
+                if(execute_to_position > 0)
                 {
+                    releaseDbAccess();
                     // Commit all changes
                     db.releaseAllSavepoints();
+                    acquireDbAccess();
+                    savepoint_created = false;
                 } else {
                     // Abort
                     emit statementErrored(tr("Execution aborted by user"), execute_current_position, execute_current_position + (query_type == PragmaStatement ? 5 : 6));
+                    releaseDbAccess();
                     return false;
                 }
             }
@@ -160,23 +183,24 @@ bool RunSql::executeNextStatement()
         // Start measuring time from here again
         time_start = std::chrono::high_resolution_clock::now();
 
-        // Check if this statement returned any data. We skip this check if this is an ALTER TABLE statement which, for some reason, are reported to return one column.
-        if(query_type != AlterStatement && sqlite3_column_count(vm))
-        {
-            // It did. So it is definitely some SELECT statement or similar and we don't need to actually execute it here
-            sql3status = SQLITE_ROW;
-        } else {
-            // It did not. So it's probably some modifying SQL statement and we want to execute it here. If for some reason
-            // it turns out to return data after all, we just change the status
-            sql3status = sqlite3_step(vm);
-
-            // SQLite returns SQLITE_DONE when a valid SELECT statement was executed but returned no results. To run into the branch that updates
-            // the status message and the table view anyway manipulate the status value here. This is also done for PRAGMA statements as they (sometimes)
-            // return rows just like SELECT statements, too.
-            if((query_type == SelectStatement || query_type == PragmaStatement) && sql3status == SQLITE_DONE)
+        if(sql3status == SQLITE_OK || sql3status == SQLITE_ROW) {
+            // Check if this statement returned any data. We skip this check if this is an ALTER TABLE statement which, for some reason, are reported to return one column.
+            if(query_type != AlterStatement && sqlite3_column_count(vm))
+            {
+                // It did. So it is definitely some SELECT statement or similar and we don't need to actually execute it here
                 sql3status = SQLITE_ROW;
-        }
+            } else {
+                // It did not. So it's probably some modifying SQL statement and we want to execute it here. If for some reason
+                // it turns out to return data after all, we just change the status
+                sql3status = sqlite3_step(vm);
 
+                // SQLite returns SQLITE_DONE when a valid SELECT statement was executed but returned no results. To run into the branch that updates
+                // the status message and the table view anyway manipulate the status value here. This is also done for PRAGMA statements as they (sometimes)
+                // return rows just like SELECT statements, too.
+                if((query_type == SelectStatement || query_type == PragmaStatement) && sql3status == SQLITE_DONE)
+                    sql3status = SQLITE_ROW;
+          }
+        }
         // Destroy statement
         sqlite3_finalize(vm);
 
@@ -186,7 +210,7 @@ bool RunSql::executeNextStatement()
         {
             // If we get here, the SQL statement returns some sort of data. So hand it over to the model for display. Don't set the modified flag
             // because statements that display data don't change data as well, except if the statement are one of INSERT/UPDATE/DELETE that could
-            // return datas with the RETURNING keyword.
+            // return data with the RETURNING keyword.
 
             releaseDbAccess();
 
@@ -239,8 +263,6 @@ bool RunSql::executeNextStatement()
             lk.unlock();
             break;
         }
-        case SQLITE_MISUSE:
-            break;
         default:
             error = QString::fromUtf8(sqlite3_errmsg(pDb.get()));
         }
@@ -291,6 +313,9 @@ bool RunSql::executeNextStatement()
 
 void RunSql::stopExecution()
 {
+    execute_current_position = 0;
+    execute_to_position = 0;
+    may_continue_with_execution = false;
     queries_left_to_execute.clear();
 }
 
@@ -310,6 +335,7 @@ RunSql::StatementType RunSql::getQueryType(const QString& query)
     if(query.startsWith("CREATE", Qt::CaseInsensitive)) return CreateStatement;
     if(query.startsWith("ATTACH", Qt::CaseInsensitive)) return AttachStatement;
     if(query.startsWith("DETACH", Qt::CaseInsensitive)) return DetachStatement;
+    if(query.startsWith("ANALYZE", Qt::CaseInsensitive)) return AnalyzeStatement;
 
     return OtherStatement;
 }

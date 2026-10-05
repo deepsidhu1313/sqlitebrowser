@@ -1,4 +1,6 @@
 #include <QMessageBox>
+#include <QDesktopServices>
+#include <QUrl>
 
 #include "ColumnDisplayFormatDialog.h"
 #include "ui_ColumnDisplayFormatDialog.h"
@@ -29,6 +31,8 @@ ColumnDisplayFormatDialog::ColumnDisplayFormatDialog(DBBrowserDB& db, const sqlb
     ui->comboDisplayFormat->addItem(tr("Julian day to date"), "julian");
     ui->comboDisplayFormat->addItem(tr("Unix epoch to date"), "epoch");
     ui->comboDisplayFormat->addItem(tr("Unix epoch to local time"), "epochLocalTime");
+    ui->comboDisplayFormat->addItem(tr("WebKit / Chromium epoch to date"), "webkitEpoch");
+    ui->comboDisplayFormat->addItem(tr("WebKit / Chromium epoch to local time"), "webkitEpochLocalTime");
     ui->comboDisplayFormat->addItem(tr("Windows DATE to date"), "winDate");
     ui->comboDisplayFormat->addItem(tr("Date as dd/mm/yyyy"), "ddmmyyyyDate");
     ui->comboDisplayFormat->insertSeparator(ui->comboDisplayFormat->count());
@@ -38,6 +42,7 @@ ColumnDisplayFormatDialog::ColumnDisplayFormatDialog(DBBrowserDB& db, const sqlb
     ui->comboDisplayFormat->addItem(tr("Binary GUID to text"), "guid");
     ui->comboDisplayFormat->addItem(tr("SpatiaLite Geometry to SVG"), "geomToSVG");
     ui->comboDisplayFormat->insertSeparator(ui->comboDisplayFormat->count());
+    ui->comboDisplayFormat->addItem(tr("JSON"), "json");
     ui->comboDisplayFormat->addItem(tr("Custom"), "custom");
 
     ui->labelDisplayFormat->setText(ui->labelDisplayFormat->text().arg(column_name));
@@ -57,6 +62,8 @@ ColumnDisplayFormatDialog::ColumnDisplayFormatDialog(DBBrowserDB& db, const sqlb
     formatFunctions["julian"] = "datetime(" + e_column_name + ")";
     formatFunctions["epoch"] = "datetime(" + e_column_name + ", 'unixepoch')";
     formatFunctions["epochLocalTime"] = "datetime(" + e_column_name + ", 'unixepoch', 'localtime')";
+    formatFunctions["webkitEpoch"] = "datetime(" + e_column_name + " / 1e6 - 11644473600, 'unixepoch')";
+    formatFunctions["webkitEpochLocalTime"] = "datetime(" + e_column_name + " / 1e6 - 11644473600, 'unixepoch', 'localtime')";
     formatFunctions["winDate"] = "datetime('1899-12-30', " + e_column_name + " || ' days')";
     formatFunctions["ddmmyyyyDate"] = "strftime('%d/%m/%Y', " + e_column_name + ")";
     formatFunctions["lower"] = "lower(" + e_column_name + ")";
@@ -81,6 +88,7 @@ R"('<svg xmlns="http://www.w3.org/2000/svg">'
    , 1, 5)
 || '" stroke="darkblue" fill="#b5cfed" stroke-width="1"/>'
 || '</svg>')").arg(e_column_name);
+    formatFunctions["json"] = "json(" + e_column_name + ")";
 
     // Set the current format, if it's empty set the default format
     if(current_format.isEmpty())
@@ -166,4 +174,9 @@ void ColumnDisplayFormatDialog::setCustom(bool modified)
     // If the SQL code is modified by user, select the custom value in the combo-box
     if(modified && ui->editDisplayFormat->hasFocus())
         ui->comboDisplayFormat->setCurrentIndex(ui->comboDisplayFormat->findData("custom"));
+}
+
+void ColumnDisplayFormatDialog::help()
+{
+    QDesktopServices::openUrl(QUrl("https://github.com/sqlitebrowser/sqlitebrowser/wiki/Display-Formats"));
 }

@@ -3,7 +3,6 @@
 #include "sqlitetablemodel.h"
 #include "CipherDialog.h"
 #include "CipherSettings.h"
-#include "DotenvFormat.h"
 #include "Settings.h"
 #include "Data.h"
 
@@ -17,6 +16,7 @@
 #include <QDebug>
 #include <QThread>
 #include <QRegularExpression>
+#include <QSettings>
 
 #include <algorithm>
 #include <array>
@@ -25,6 +25,35 @@
 #include <chrono>
 #include <cstring>
 #include <functional>
+
+namespace {
+
+bool equalsIgnoreCase(const std::string& lhs, const std::string& rhs)
+{
+    if(lhs.size() != rhs.size())
+        return false;
+
+    return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), [](unsigned char a, unsigned char b) {
+        return std::tolower(a) == std::tolower(b);
+    });
+}
+
+template<typename MapType>
+typename MapType::const_iterator findCaseInsensitive(const MapType& map, const std::string& key)
+{
+    auto it = map.find(key);
+    if(it != map.end())
+        return it;
+
+    return std::find_if(map.begin(), map.end(), [&key](const auto& entry) {
+        return equalsIgnoreCase(entry.first, key);
+    });
+}
+
+}
+
+const QStringList DBBrowserDB::journalModeValues = {"DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"};
+const QStringList DBBrowserDB::lockingModeValues = {"NORMAL", "EXCLUSIVE"};
 
 QStringList DBBrowserDB::Datatypes = {"INTEGER", "TEXT", "BLOB", "REAL", "NUMERIC"};
 QStringList DBBrowserDB::DatatypesStrict = {"INT", "INTEGER", "TEXT", "BLOB", "REAL", "ANY"};
@@ -450,34 +479,31 @@ bool DBBrowserDB::tryEncryptionSettings(const QString& filePath, bool* encrypted
 
             // Being in a while loop, we don't want to check the same file multiple times
             if (!isDotenvChecked) {
-                QFile databaseFile(filePath);
-                QFileInfo databaseFileInfo(databaseFile);
+                const QFileInfo databaseFileInfo(filePath);
 
-                QString databaseDirectoryPath = databaseFileInfo.dir().path();
-                QString databaseFileName(databaseFileInfo.fileName());
+                const QDir databaseDirectory(databaseFileInfo.absoluteDir());
+                const QString databaseFileName(databaseFileInfo.fileName());
 
-                QString dotenvFilePath = databaseDirectoryPath + "/.env";
-                static const QSettings::Format dotenvFormat = QSettings::registerFormat("env", &DotenvFormat::readEnvFile, nullptr);
-                QSettings dotenv(dotenvFilePath, dotenvFormat);
+                auto tryLoadDotenv = [&](const QString& dotenvFilePath) -> bool {
+                    if (!QFile::exists(dotenvFilePath))
+                        return false;
 
-                QVariant passwordValue = dotenv.value(databaseFileName);
+                    const QSettings dotenv(dotenvFilePath, QSettings::IniFormat);
+                    const QVariant passwordValue = dotenv.value(databaseFileName);
 
-                foundDotenvPassword = !passwordValue.isNull();
+                    if (passwordValue.isNull())
+                        return false;
 
-                isDotenvChecked = true;
+                    const std::string password = passwordValue.toString().toStdString();
 
-                if (foundDotenvPassword)
-                {
-                    std::string password = passwordValue.toString().toStdString();
+                    const QVariant keyFormatValue = dotenv.value(databaseFileName + "_keyFormat", QVariant(CipherSettings::KeyFormats::Passphrase));
+                    const CipherSettings::KeyFormats keyFormat = CipherSettings::getKeyFormat(keyFormatValue.toInt());
 
-                    QVariant keyFormatValue = dotenv.value(databaseFileName + "_keyFormat", QVariant(CipherSettings::KeyFormats::Passphrase));
-                    CipherSettings::KeyFormats keyFormat = CipherSettings::getKeyFormat(keyFormatValue.toInt());
-
-                    int pageSize = dotenv.value(databaseFileName + "_pageSize", enc_default_page_size).toInt();
-                    int kdfIterations = dotenv.value(databaseFileName + "_kdfIter", enc_default_kdf_iter).toInt();
-                    int plaintextHeaderSize = dotenv.value(databaseFileName + "_plaintextHeaderSize", enc_default_plaintext_header_size).toInt();
-                    std::string hmacAlgorithm = dotenv.value(databaseFileName + "_hmacAlgorithm", QString::fromStdString(enc_default_hmac_algorithm)).toString().toStdString();
-                    std::string kdfAlgorithm = dotenv.value(databaseFileName + "_kdfAlgorithm", QString::fromStdString(enc_default_kdf_algorithm)).toString().toStdString();
+                    const int pageSize = dotenv.value(databaseFileName + "_pageSize", enc_default_page_size).toInt();
+                    const int kdfIterations = dotenv.value(databaseFileName + "_kdfIter", enc_default_kdf_iter).toInt();
+                    const int plaintextHeaderSize = dotenv.value(databaseFileName + "_plaintextHeaderSize", enc_default_plaintext_header_size).toInt();
+                    const std::string hmacAlgorithm = dotenv.value(databaseFileName + "_hmacAlgorithm", QString::fromStdString(enc_default_hmac_algorithm)).toString().toStdString();
+                    const std::string kdfAlgorithm = dotenv.value(databaseFileName + "_kdfAlgorithm", QString::fromStdString(enc_default_kdf_algorithm)).toString().toStdString();
 
                     cipherSettings->setKeyFormat(keyFormat);
                     cipherSettings->setPassword(password);
@@ -486,7 +512,36 @@ bool DBBrowserDB::tryEncryptionSettings(const QString& filePath, bool* encrypted
                     cipherSettings->setHmacAlgorithm("HMAC_" + hmacAlgorithm);
                     cipherSettings->setKdfAlgorithm("PBKDF2_HMAC_" + kdfAlgorithm);
                     cipherSettings->setPlaintextHeaderSize(plaintextHeaderSize);
+
+                    return true;
+                };
+
+                const QString db4sEnvPath = databaseDirectory.filePath(".db4s.env");
+                const bool hasDB4SEnv = QFile::exists(db4sEnvPath);
+
+                if (hasDB4SEnv)
+                {
+                    foundDotenvPassword = tryLoadDotenv(db4sEnvPath);
+                } else {
+                    // Deprecated: legacy .env in the database directory only. Remove once .db4s.env is adopted.
+                    foundDotenvPassword = tryLoadDotenv(databaseDirectory.filePath(".env"));
+
+                    // Parent folder search is opt-in because it can slow down opening encrypted databases.
+                    if (!foundDotenvPassword && Settings::getValue("db", "sqlcipherparentdotenvlookup").toBool())
+                    {
+                        QDir searchDirectory(databaseDirectory);
+                        while (searchDirectory.cdUp())
+                        {
+                            if (tryLoadDotenv(searchDirectory.filePath(".db4s.env")))
+                            {
+                                foundDotenvPassword = true;
+                                break;
+                            }
+                        }
+                    }
                 }
+
+                isDotenvChecked = true;
             }
 
             if(foundDotenvPassword)
@@ -871,8 +926,11 @@ bool DBBrowserDB::dump(const QString& filePath,
         std::vector<sqlb::TablePtr> tables;
         for(const auto& it : objMap.tables)
         {
-            // Never export the sqlite_stat1 and the sqlite_sequence tables if they exist. Also only export any tables which are selected for export.
-            if(!it.second->isView() && it.first != "sqlite_stat1" && it.first != "sqlite_sequence" && contains(tablesToDump, it.first))
+            QString tableName = QString::fromStdString(it.first);
+            // Never export the sqlite internal tables. Also only export any tables which are selected for export.
+            if(!it.second->isView()
+                && !tableName.startsWith("sqlite_", Qt::CaseInsensitive)
+                && contains(tablesToDump, it.first))
             {
                 // Get the number of records in this table and remember to export it
                 tables.push_back(it.second);
@@ -882,6 +940,9 @@ bool DBBrowserDB::dump(const QString& filePath,
 
         QProgressDialog progress(tr("Exporting database to SQL file..."),
                                  tr("Cancel"), 0, static_cast<int>(numRecordsTotal));
+        // Disable context help button on Windows
+        progress.setWindowFlags(progress.windowFlags()
+                                & ~Qt::WindowContextHelpButtonHint);
         progress.setWindowModality(Qt::ApplicationModal);
         progress.show();
         qApp->processEvents();
@@ -907,9 +968,14 @@ bool DBBrowserDB::dump(const QString& filePath,
                 else {
                     QString statement = QString::fromStdString(it->originalSql());
                     if(keepOldSchema) {
-                        // The statement is guaranteed by SQLite to start with "CREATE TABLE"
-                        const int createTableLength = 12;
-                        statement.replace(0, createTableLength, "CREATE TABLE IF NOT EXISTS");
+                        if (statement.startsWith("CREATE VIRTUAL TABLE", Qt::CaseInsensitive)) {
+                            const int createTableLength = 20;
+                            statement.replace(0, createTableLength, "CREATE VIRTUAL TABLE IF NOT EXISTS");
+                        } else {
+                            // The statement is guaranteed by SQLite to start with "CREATE TABLE"
+                            const int createTableLength = 12;
+                            statement.replace(0, createTableLength, "CREATE TABLE IF NOT EXISTS");
+                        }
                     }
                     stream << statement << ";\n";
                 }
@@ -924,7 +990,19 @@ bool DBBrowserDB::dump(const QString& filePath,
                 // get columns
                 sqlb::StringVector cols = it->fieldNames();
 
+                // Generated columns cannot be inserted into, so leave them out of both the SELECT and the
+                // INSERT statements, like the sqlite3 shell's .dump does
                 std::string sQuery = "SELECT * FROM " + sqlb::escapeIdentifier(it->name());
+                if(std::any_of(it->fields.begin(), it->fields.end(), [](const sqlb::Field& f) { return f.generated() != nullptr; }))
+                {
+                    cols.clear();
+                    for(const sqlb::Field& f : it->fields)
+                    {
+                        if(!f.generated())
+                            cols.push_back(f.name());
+                    }
+                    sQuery = "SELECT " + sqlb::joinStringVector(sqlb::escapeIdentifier(cols), ",") + " FROM " + sqlb::escapeIdentifier(it->name());
+                }
                 sqlite3_stmt *stmt;
                 QString lineSep(QString(")%1\n").arg(insertNewSyntx?',':';'));
 
@@ -1115,6 +1193,9 @@ bool DBBrowserDB::executeMultiSQL(QByteArray query, bool dirty, bool log)
     QProgressDialog progress(tr("Executing SQL..."),
                              tr("Cancel"), 0, 100);
     progress.setWindowModality(Qt::ApplicationModal);
+    // Disable context help button on Windows
+    progress.setWindowFlags(progress.windowFlags()
+                            & ~Qt::WindowContextHelpButtonHint);
     progress.show();
 
     // Execute the statement by looping until SQLite stops giving back a tail string
@@ -1196,30 +1277,31 @@ bool DBBrowserDB::executeMultiSQL(QByteArray query, bool dirty, bool log)
         // Execute next statement
         if(sqlite3_prepare_v2(_db, tail, static_cast<int>(tail_end - tail + 1), &vm, &tail) == SQLITE_OK)
         {
-            switch(sqlite3_step(vm))
+            if(vm)
             {
-            case SQLITE_OK:
-            case SQLITE_ROW:
-            case SQLITE_DONE:
-            case SQLITE_MISUSE:             // This is a workaround around problematic user scripts. If they lead to empty commands,
-                                            // SQLite will return a misuse error which we hereby ignore.
-                sqlite3_finalize(vm);
-                break;
-            default:
-                // In case of *any* error abort the execution and roll back the transaction
+                switch(sqlite3_step(vm))
+                {
+                case SQLITE_OK:
+                case SQLITE_ROW:
+                case SQLITE_DONE:
+                    sqlite3_finalize(vm);
+                    break;
+                default:
+                    // In case of *any* error abort the execution and roll back the transaction
 
-                // Make sure to save the error message first before any other function can mess around with it
-                lastErrorMessage = tr("Error in statement #%1: %2.\nAborting execution%3.").arg(
-                        QString::number(line),
-                        sqlite3_errmsg(_db),
-                        dirty ? tr(" and rolling back") : "");
-                qWarning() << lastErrorMessage;
+                    // Make sure to save the error message first before any other function can mess around with it
+                    lastErrorMessage = tr("Error in statement #%1: %2.\nAborting execution%3.").arg(
+                            QString::number(line),
+                            sqlite3_errmsg(_db),
+                            dirty ? tr(" and rolling back") : "");
+                    qWarning() << lastErrorMessage;
 
-                // Clean up
-                sqlite3_finalize(vm);
-                if(dirty)
-                    revertToSavepoint(savepoint_name);
-                return false;
+                    // Clean up
+                    sqlite3_finalize(vm);
+                    if(dirty)
+                        revertToSavepoint(savepoint_name);
+                    return false;
+                }
             }
         } else {
             lastErrorMessage = tr("Error in statement #%1: %2.\nAborting execution%3.").arg(
@@ -1330,7 +1412,7 @@ bool DBBrowserDB::getRow(const sqlb::ObjectIdentifier& table, const QString& row
 unsigned long DBBrowserDB::max(const sqlb::ObjectIdentifier& tableName, const std::string& field) const
 {
     // This query returns the maximum value of the given table and column
-    std::string query = "SELECT MAX(CAST(" + sqlb::escapeIdentifier(field) + " AS INTEGER)) FROM " + tableName.toString() + ")";
+    std::string query = "SELECT MAX(CAST(" + sqlb::escapeIdentifier(field) + " AS INTEGER)) FROM " + tableName.toString();
 
     // If, however, there is a sequence table in this database and the given column is the primary key of the table, we try to look up a value in the sequence table
     if(schemata.at(tableName.schema()).tables.count("sqlite_sequence"))
@@ -1341,7 +1423,7 @@ unsigned long DBBrowserDB::max(const sqlb::ObjectIdentifier& tableName, const st
             // This SQL statement tries to do two things in one statement: get the current sequence number for this table from the sqlite_sequence table or, if there is no record for the table, return the highest integer value in the given column.
             // This works by querying the sqlite_sequence table and using an aggregate function (SUM in this case) to make sure to always get exactly one result row, no matter if there is a sequence record or not. We then let COALESCE decide
             // whether to return that sequence value if there is one or fall back to the SELECT MAX statement from avove if there is no sequence value.
-            query = "SELECT COALESCE(SUM(seq), (" + query + ") FROM sqlite_sequence WHERE name=" + sqlb::escapeString(tableName.name());
+            query = "SELECT COALESCE(SUM(seq), (" + query + ")) FROM sqlite_sequence WHERE name=" + sqlb::escapeString(tableName.name());
          }
     }
 
@@ -1511,7 +1593,6 @@ bool DBBrowserDB::updateRecord(const sqlb::ObjectIdentifier& table, const std::s
         sql += "sqlb_make_single_value(" + sqlb::joinStringVector(sqlb::escapeIdentifier(pks), ",") + ")=" + sqlb::escapeString(rowid.toStdString());
 
     setSavepoint();
-    logSQL(QString::fromStdString(sql), kLogMsg_App);
 
     // If we get a NULL QByteArray we insert a NULL value, and for that
     // we can pass NULL to sqlite3_bind_text() so that it behaves like sqlite3_bind_null()
@@ -1537,8 +1618,11 @@ bool DBBrowserDB::updateRecord(const sqlb::ObjectIdentifier& table, const std::s
                 success = -1;
         }
     }
-    if(success == 1 && sqlite3_step(stmt) != SQLITE_DONE)
-        success = -1;
+    if(success == 1) {
+        logSQL(QString::fromUtf8(sqlite3_expanded_sql(stmt)), kLogMsg_App);
+        if(sqlite3_step(stmt) != SQLITE_DONE)
+            success = -1;
+    }
     if(success != 0 && sqlite3_finalize(stmt) != SQLITE_OK)
         success = -1;
 
@@ -2170,6 +2254,16 @@ void DBBrowserDB::loadExtensionsFromSettings()
         if(loadExtension(ext) == false)
             QMessageBox::warning(nullptr, QApplication::applicationName(), tr("Error loading extension: %1").arg(lastError()));
     }
+
+    const QVariantMap builtinList = Settings::getValue("extensions", "builtin").toMap();
+    for(const QString& ext : builtinList.keys())
+    {
+        if(builtinList.value(ext).toBool())
+        {
+            if(loadExtension(ext) == false)
+                QMessageBox::warning(nullptr, QApplication::applicationName(), tr("Error loading built-in extension: %1").arg(lastError()));
+        }
+    }
 }
 
 std::vector<std::pair<std::string, std::string>> DBBrowserDB::queryColumnInformation(const std::string& schema_name, const std::string& object_name) const
@@ -2197,6 +2291,66 @@ std::vector<std::pair<std::string, std::string>> DBBrowserDB::queryColumnInforma
     }
 
     return result;
+}
+
+const sqlb::TablePtr DBBrowserDB::getTableByName(const sqlb::ObjectIdentifier& name) const
+{
+    if(schemata.empty() || name.schema().empty() || name.name().empty())
+        return sqlb::TablePtr{};
+
+    const auto schemaIt = findCaseInsensitive(schemata, name.schema());
+    if(schemaIt == schemata.end())
+        return sqlb::TablePtr{};
+
+    const auto& tables = schemaIt->second.tables;
+    if(tables.empty())
+        return sqlb::TablePtr{};
+
+    const auto tableIt = findCaseInsensitive(tables, name.name());
+    if(tableIt == tables.end())
+        return sqlb::TablePtr{};
+
+    return tableIt->second;
+}
+
+const sqlb::IndexPtr DBBrowserDB::getIndexByName(const sqlb::ObjectIdentifier& name) const
+{
+    if(schemata.empty() || name.schema().empty() || name.name().empty())
+        return sqlb::IndexPtr{};
+
+    const auto schemaIt = findCaseInsensitive(schemata, name.schema());
+    if(schemaIt == schemata.end())
+        return sqlb::IndexPtr{};
+
+    const auto& indices = schemaIt->second.indices;
+    if(indices.empty())
+        return sqlb::IndexPtr{};
+
+    const auto indexIt = findCaseInsensitive(indices, name.name());
+    if(indexIt == indices.end())
+        return sqlb::IndexPtr{};
+
+    return indexIt->second;
+}
+
+const sqlb::TriggerPtr DBBrowserDB::getTriggerByName(const sqlb::ObjectIdentifier& name) const
+{
+    if(schemata.empty() || name.schema().empty() || name.name().empty())
+        return sqlb::TriggerPtr{};
+
+    const auto schemaIt = findCaseInsensitive(schemata, name.schema());
+    if(schemaIt == schemata.end())
+        return sqlb::TriggerPtr{};
+
+    const auto& triggers = schemaIt->second.triggers;
+    if(triggers.empty())
+        return sqlb::TriggerPtr{};
+
+    const auto triggerIt = findCaseInsensitive(triggers, name.name());
+    if(triggerIt == triggers.end())
+        return sqlb::TriggerPtr{};
+
+    return triggerIt->second;
 }
 
 std::string DBBrowserDB::generateSavepointName(const std::string& identifier) const

@@ -82,7 +82,7 @@
          <item row="1" column="1">
           <widget class="QCheckBox" name="checkWithoutRowid">
            <property name="toolTip">
-            <string>Make this a 'WITHOUT rowid' table. Setting this flag requires a field of type INTEGER with the primary key flag set and the auto increment flag unset.</string>
+            <string>Make this a 'WITHOUT ROWID' table. Setting this flag requires specifying a PRIMARY KEY (which can be of any type, and can be composite), and forbids the AUTOINCREMENT flag.</string>
            </property>
           </widget>
          </item>
@@ -602,6 +602,10 @@
             <property name="text">
              <string>Add</string>
             </property>
+            <property name="icon">
+             <iconset resource="icons/icons.qrc">
+              <normaloff>:/icons/field_add</normaloff>:/icons/field_add</iconset>
+            </property>
             <property name="popupMode">
              <enum>QToolButton::InstantPopup</enum>
             </property>
@@ -620,6 +624,10 @@
             </property>
             <property name="text">
              <string>Remove</string>
+            </property>
+            <property name="icon">
+             <iconset resource="icons/icons.qrc">
+              <normaloff>:/icons/field_delete</normaloff>:/icons/field_delete</iconset>
             </property>
             <property name="toolButtonStyle">
              <enum>Qt::ToolButtonTextBesideIcon</enum>
@@ -930,9 +938,9 @@
   </connection>
   <connection>
    <sender>comboSchema</sender>
-   <signal>currentIndexChanged(QString)</signal>
+   <signal>currentIndexChanged(int)</signal>
    <receiver>EditTableDialog</receiver>
-   <slot>changeSchema(QString)</slot>
+   <slot>changeSchema(int)</slot>
    <hints>
     <hint type="sourcelabel">
      <x>482</x>
@@ -994,9 +1002,9 @@
   </connection>
   <connection>
    <sender>comboOnConflict</sender>
-   <signal>currentIndexChanged(QString)</signal>
+   <signal>currentIndexChanged(int)</signal>
    <receiver>EditTableDialog</receiver>
-   <slot>setOnConflict(QString)</slot>
+   <slot>setOnConflict(int)</slot>
    <hints>
     <hint type="sourcelabel">
      <x>516</x>
@@ -1099,11 +1107,11 @@
   <slot>moveUp()</slot>
   <slot>moveDown()</slot>
   <slot>setWithoutRowid(bool)</slot>
-  <slot>changeSchema(QString)</slot>
+  <slot>changeSchema(int)</slot>
   <slot>removeIndexConstraint()</slot>
   <slot>moveTop()</slot>
   <slot>moveBottom()</slot>
-  <slot>setOnConflict(QString)</slot>
+  <slot>setOnConflict(int)</slot>
   <slot>setStrict(bool)</slot>
   <slot>addForeignKey()</slot>
   <slot>removeForeignKey()</slot>

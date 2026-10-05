@@ -1,4 +1,4 @@
-#include "sqlitetablemodel.h"
+﻿#include "sqlitetablemodel.h"
 #include "sqlitedb.h"
 #include "sqlite.h"
 #include "Settings.h"
@@ -41,6 +41,7 @@ SqliteTableModel::SqliteTableModel(DBBrowserDB& db, QObject* parent, const QStri
     // any UI updates must be performed in the UI thread, not in the worker thread:
     connect(worker, &RowLoader::fetched, this, &SqliteTableModel::handleFinishedFetch, Qt::QueuedConnection);
     connect(worker, &RowLoader::rowCountComplete, this, &SqliteTableModel::handleRowCountComplete, Qt::QueuedConnection);
+    connect(worker, &RowLoader::error, this, &SqliteTableModel::handleError, Qt::QueuedConnection);
 
     reset();
 }
@@ -106,11 +107,20 @@ void SqliteTableModel::handleRowCountComplete (int life_id, int num_rows)
     emit finishedRowCount();
 }
 
+void SqliteTableModel::handleError(int life_id, const QString& errMsg)
+{
+    if (life_id < m_lifeCounter)
+        return;
+
+    m_lastError = errMsg;
+}
+
 void SqliteTableModel::reset()
 {
     beginResetModel();
 
     clearCache();
+    m_lastError.clear();
     m_sQuery.clear();
     m_query.clear();
     m_table_of_query.reset();
@@ -361,9 +371,20 @@ QVariant SqliteTableModel::data(const QModelIndex &index, int role) const
             }
         }
     } else if(role == Qt::EditRole) {
-        if(!row_available)
+        if(!row_available || data.isNull())
             return QVariant();
-        return decode(data);
+        QVariant decodedData = decode(data);
+        QVariant convertedData = decodedData;
+        bool converted = false;
+        // For the edit role, return the data according to its column type if possible.
+        if(m_vDataTypes.at(column) == SQLITE_INTEGER &&
+           decodedData.canConvert(QMetaType::LongLong)) {
+            converted = convertedData.convert(QMetaType::LongLong);
+        } else if(m_vDataTypes.at(column) == SQLITE_FLOAT &&
+                  decodedData.canConvert(QMetaType::Double)) {
+            converted = convertedData.convert(QMetaType::Double);
+        }
+        return converted? convertedData : decodedData;
     } else if(role == Qt::FontRole) {
         QFont font = m_font;
         if(!row_available || data.isNull() || isBinary(data))
@@ -997,6 +1018,9 @@ bool SqliteTableModel::completeCache () const
     progress.setCancelButton(cancelButton);
 
     progress.setWindowModality(Qt::ApplicationModal);
+    // Disable context help button on Windows
+    progress.setWindowFlags(progress.windowFlags()
+                            & ~Qt::WindowContextHelpButtonHint);
     progress.show();
 
     waitUntilIdle();
@@ -1033,7 +1057,12 @@ QModelIndex SqliteTableModel::nextMatch(const QModelIndex& start, const std::vec
 {
     // Extract flags
     bool whole_cell = !(flags & Qt::MatchContains);
-    bool regex = flags & Qt::MatchRegExp;
+#if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
+    auto match_flag = Qt::MatchRegExp;
+#else
+    auto match_flag = Qt::MatchRegularExpression;
+#endif
+    bool regex = flags & match_flag;
     Qt::CaseSensitivity case_sensitive = ((flags & Qt::MatchCaseSensitive) ? Qt::CaseSensitive : Qt::CaseInsensitive);
     bool wrap = flags & Qt::MatchWrap;
     int increment = (reverse ? -1 : 1);

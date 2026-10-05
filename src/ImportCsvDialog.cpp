@@ -17,6 +17,7 @@
 #include <QTextStream>
 #include <QFileInfo>
 #include <memory>
+#include <regex>
 
 // Enable this line to show basic performance stats after each imported CSV file. Please keep in mind that while these
 // numbers might help to estimate the performance of the algorithm, this is not a proper benchmark.
@@ -71,11 +72,13 @@ ImportCsvDialog::ImportCsvDialog(const std::vector<QString>& filenames, DBBrowse
     ui->comboSeparator->blockSignals(true);
     ui->comboQuote->blockSignals(true);
     ui->comboEncoding->blockSignals(true);
+    ui->checkReplaceNonAlnum->blockSignals(true);
 
     ui->checkboxHeader->setChecked(Settings::getValue("importcsv", "firstrowheader").toBool());
     ui->checkBoxTrimFields->setChecked(Settings::getValue("importcsv", "trimfields").toBool());
     ui->checkBoxSeparateTables->setChecked(Settings::getValue("importcsv", "separatetables").toBool());
     ui->checkLocalConventions->setChecked(Settings::getValue("importcsv", "localconventions").toBool());
+    ui->checkReplaceNonAlnum->setChecked(Settings::getValue("importcsv", "replacenonalnum").toBool());
     setSeparatorChar(getSettingsChar("importcsv", "separator"));
     setQuoteChar(getSettingsChar("importcsv", "quotecharacter"));
     setEncoding(Settings::getValue("importcsv", "encoding").toString());
@@ -87,6 +90,7 @@ ImportCsvDialog::ImportCsvDialog(const std::vector<QString>& filenames, DBBrowse
     ui->comboSeparator->blockSignals(false);
     ui->comboQuote->blockSignals(false);
     ui->comboEncoding->blockSignals(false);
+    ui->checkReplaceNonAlnum->blockSignals(false);
 
     // Prepare and show interface depending on how many files are selected
     if (csvFilenames.size() > 1)
@@ -151,6 +155,9 @@ public:
           totalFileSize(filesize)
     {
         m_pProgressDlg->setWindowModality(Qt::ApplicationModal);
+        // Disable context help button on Windows
+        m_pProgressDlg->setWindowFlags(m_pProgressDlg->windowFlags()
+                                      & ~Qt::WindowContextHelpButtonHint);
     }
 
     CSVImportProgress(const CSVImportProgress&) = delete;
@@ -190,6 +197,7 @@ void ImportCsvDialog::accept()
     Settings::setValue("importcsv", "separatetables", ui->checkBoxSeparateTables->isChecked());
     Settings::setValue("importcsv", "localconventions", ui->checkLocalConventions->isChecked());
     Settings::setValue("importcsv", "encoding", currentEncoding());
+    Settings::setValue("importcsv", "replacenonalnum", ui->checkReplaceNonAlnum->isChecked());
 
     // Get all the selected files and start the import
     if (ui->filePickerBlock->isVisible())
@@ -396,9 +404,12 @@ CSVParser::ParserResult ImportCsvDialog::parseCSV(const QString &fileName, std::
     // Only show progress dialog if we parse all rows. The assumption here is that if a row count limit has been set, it won't be a very high one.
     if(count == 0)
         csv.setCSVProgress(new CSVImportProgress(file.size()));
-
     QTextStream tstream(&file);
+    // textstream.setCodec(QTextCodec::codecForName("UTF-8"));
+    // is no longer needed in Qt6 since QTextStream defaults to utf-8.
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     tstream.setCodec(currentEncoding().toUtf8());
+#endif
 
     return csv.parse(rowFunction, tstream, count);
 }
@@ -419,6 +430,17 @@ sqlb::FieldVector ImportCsvDialog::generateFieldList(const QString& filename) co
             {
                 // Take field name from CSV
                 fieldname = std::string(rowData.fields[i].data, rowData.fields[i].data_length);
+
+                // Replace any non-alphanumeric characters with an underscore
+                if (ui->checkReplaceNonAlnum->isChecked())
+                {
+                    QString qFieldname = QString::fromStdString(fieldname);
+                    for (QChar &c : qFieldname)
+                        if (!c.isLetterOrNumber() && c != '_')
+                            c = '_';
+
+                    fieldname = qFieldname.toStdString();
+                }
             }
 
             // If we don't have a field name by now, generate one
@@ -873,6 +895,8 @@ void ImportCsvDialog::toggleAdvancedSection(bool show)
     ui->checkIgnoreDefaults->setVisible(show);
     ui->labelOnConflictStrategy->setVisible(show);
     ui->comboOnConflictStrategy->setVisible(show);
+    ui->labelReplaceNonAlnum->setVisible(show);
+    ui->checkReplaceNonAlnum->setVisible(show);
 }
 
 char32_t ImportCsvDialog::toUtf8(const QString& s) const
@@ -883,7 +907,7 @@ char32_t ImportCsvDialog::toUtf8(const QString& s) const
     QByteArray ba = s.toUtf8();
 
     char32_t result = 0;
-    for(int i=std::min(ba.size()-1,3);i>=0;i--)
+    for(QByteArray::size_type i=std::min(ba.size()-1,QByteArray::size_type(3));i>=0;i--)
         result = (result << 8) + static_cast<unsigned char>(ba.at(i));
 
     return result;
