@@ -774,8 +774,9 @@ void ExtendedTableWidget::paste()
         return;
     }
 
-    // If more than one cell was selected, check if the selection matches the cliboard dimensions
-    if(selectedRows != rows || selectedColumns != columns)
+    // If more than one cell was selected, check if the clipboard data fits into the selection. Pasting less data than there are
+    // selected cells is fine because the data is just pasted starting at the top left cell of the selection.
+    if(rows > selectedRows || columns > selectedColumns)
     {
         // Ask user if they are sure about this
         if(QMessageBox::question(this, QApplication::applicationName(),
