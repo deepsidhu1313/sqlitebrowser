@@ -18,6 +18,7 @@ private slots:
     void foreignKeys();
     void uniqueConstraint();
     void addAndRemoveKeyInConstraint();
+    void renameKeyInForeignKeys();
 
     void parseSQL();
     void parseSQLSquareBrackets();

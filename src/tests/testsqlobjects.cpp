@@ -212,6 +212,25 @@ void TestTable::addAndRemoveKeyInConstraint()
     QCOMPARE(tt.indexConstraints().size(), size_t(0));
 }
 
+void TestTable::renameKeyInForeignKeys()
+{
+    Table tt("testtable");
+    tt.fields.emplace_back("a", "integer");
+    tt.fields.emplace_back("b", "integer");
+    tt.addConstraint({std::string("a")}, std::make_shared<sqlb::ForeignKeyClause>("x", sqlb::StringVector{"y"}));
+    tt.addConstraint({std::string("a"), std::string("b")}, std::make_shared<sqlb::ForeignKeyClause>("z", sqlb::StringVector{"v", "w"}));
+    tt.addConstraint({std::string("b")}, std::make_shared<sqlb::ForeignKeyClause>("u", sqlb::StringVector{"t"}));
+
+    // Every foreign key using the renamed column has to be updated. This used to skip entries and step past the end.
+    tt.renameKeyInAllConstraints("a", "c");
+
+    const std::string sql = tt.sql();
+    QVERIFY(sql.find("FOREIGN KEY(\"c\") REFERENCES \"x\"(\"y\")") != std::string::npos);
+    QVERIFY(sql.find("FOREIGN KEY(\"c\",\"b\") REFERENCES \"z\"(\"v\",\"w\")") != std::string::npos);
+    QVERIFY(sql.find("FOREIGN KEY(\"b\") REFERENCES \"u\"(\"t\")") != std::string::npos);
+    QVERIFY(sql.find("FOREIGN KEY(\"a\"") == std::string::npos);
+}
+
 void TestTable::uniqueConstraint()
 {
     Table tt("testtable");
