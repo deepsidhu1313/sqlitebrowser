@@ -511,6 +511,10 @@ bool SqliteTableModel::setTypedData(const QModelIndex& index, bool isBlob, const
     {
         std::unique_lock<std::mutex> lock(m_mutexDataCache);
 
+        // The row isn't loaded (anymore), so there is nothing we could change
+        if(!m_cache.count(static_cast<size_t>(index.row())))
+            return false;
+
         auto & cached_row = m_cache.at(static_cast<size_t>(index.row()));
         const size_t column = static_cast<size_t>(index.column());
 

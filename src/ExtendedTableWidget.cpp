@@ -789,6 +789,14 @@ void ExtendedTableWidget::paste()
 
     // If we get here, we can definitely start pasting: either the ranges match in their size or the user agreed to paste anyway
 
+    // The table is loaded lazily, so make sure the rows we are going to write to are in the cache. Writing to a row which
+    // isn't loaded yet is not possible.
+    for(int r=firstRow;r<=lastRow;r++)
+    {
+        m->triggerCacheLoad(r);
+        m->waitUntilIdle();
+    }
+
     // Copy the data cell by cell and as-is from the source buffer to the table
     int row = firstRow;
     for(const auto& source_row : *source)
