@@ -139,3 +139,36 @@ void TestGlobalFilter::projectRoundTripPreservesRegexTerm()
     QCOMPARE(asStringList(restored), QStringList{"/New York/"});
     QCOMPARE(executeIssueQuery(restored), QStringList{"New York"});
 }
+
+void TestGlobalFilter::exactFilterComparesNumbers_data()
+{
+    QTest::addColumn<QString>("filter");
+    QTest::addColumn<QString>("expected");
+
+    QTest::newRow("integer") << "=2" << "= 2 ";
+    QTest::newRow("negative") << "=-3" << "= -3 ";
+    QTest::newRow("decimal") << "=2.5" << "= 2.5 ";
+    QTest::newRow("leading-zeros") << "=007" << "= '007' ";
+    QTest::newRow("text") << "=abc" << "= 'abc' ";
+    QTest::newRow("null") << "=NULL" << "IS NULL ";
+}
+
+void TestGlobalFilter::exactFilterComparesNumbers()
+{
+    QFETCH(QString, filter);
+    QFETCH(QString, expected);
+    QCOMPARE(QString::fromStdString(CondFormat::filterToSqlCondition(filter)), expected);
+
+    // A column without type affinity, like the result of COUNT(*), only matches an unquoted number
+    sqlite3* db = nullptr;
+    QCOMPARE(sqlite3_open(":memory:", &db), SQLITE_OK);
+    QCOMPARE(sqlite3_exec(db, "CREATE TABLE t(a); INSERT INTO t VALUES (1), (2), (2);", nullptr, nullptr, nullptr), SQLITE_OK);
+    int count = 0;
+    const std::string sql = "SELECT COUNT(*) AS c FROM (SELECT COUNT(*) AS c FROM t GROUP BY a) WHERE c " + CondFormat::filterToSqlCondition("=1");
+    QCOMPARE(sqlite3_exec(db, sql.c_str(), [](void* data, int, char** values, char**) {
+        *static_cast<int*>(data) = QString(values[0]).toInt();
+        return 0;
+    }, &count, nullptr), SQLITE_OK);
+    QCOMPARE(count, 1);
+    sqlite3_close(db);
+}

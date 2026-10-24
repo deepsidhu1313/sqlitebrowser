@@ -4,6 +4,7 @@
 #include "sqlitedb.h"
 
 #include <QAbstractTableModel>
+#include <QRegularExpression>
 
 CondFormat::Alignment CondFormat::fromCombinedAlignment(Qt::Alignment align)
 {
@@ -111,6 +112,12 @@ std::string CondFormat::filterToSqlCondition(const QString& value, const QString
             {
                 // It's not, so just compare normally to the value, whatever it is.
                 op = "=";
+
+                // Don't quote plain numbers. Comparing a number with a quoted string never matches when the column
+                // has no type affinity, e.g. the result of COUNT(*). Values like 007 are kept as text, though, because
+                // they would lose their leading zeros as numbers.
+                static const QRegularExpression plainNumber("^-?(0|[1-9][0-9]*)(\\.[0-9]+)?$");
+                numeric = plainNumber.match(val).hasMatch();
             } else {
                 // It is NULL. Override the comparison operator to search for NULL values in this column. Also treat search value (NULL) as number,
                 // in order to avoid putting quotes around it.
