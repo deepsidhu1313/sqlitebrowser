@@ -8,8 +8,11 @@
 [![CodeQL](https://github.com/sqlitebrowser/sqlitebrowser/actions/workflows/codeql.yml/badge.svg)](https://github.com/sqlitebrowser/sqlitebrowser/actions/workflows/codeql.yml)
 [![Coverity][coverity-img]][coverity]<br>
 [![Download][download-img]][download]
-[![snapcraft](https://snapcraft.io/sqlitebrowser/badge.svg)](https://snapcraft.io/sqlitebrowser)
-[![snapcraft](https://snapcraft.io/sqlitebrowser/trending.svg?name=0)](https://snapcraft.io/sqlitebrowser)
+[![Qt][qt-img]][qt]
+[![Coverity][coverity-img]][coverity]
+[![Patreon][patreon-img]][patreon]
+[![sqlitebrowser](https://snapcraft.io/sqlitebrowser/badge.svg)](https://snapcraft.io/sqlitebrowser)
+[![sqlitebrowser](https://snapcraft.io/sqlitebrowser/trending.svg?name=0)](https://snapcraft.io/sqlitebrowser)
 
 ![DB Browser for SQLite Screenshot](https://github.com/sqlitebrowser/sqlitebrowser/raw/master/images/sqlitebrowser.png "DB Browser for SQLite Screenshot")
 
