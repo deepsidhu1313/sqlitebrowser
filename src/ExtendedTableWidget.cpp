@@ -442,6 +442,21 @@ void ExtendedTableWidget::reloadSettings()
     setWordWrap(Settings::getValue("databrowser", "cell_word_wrap").toBool());
 }
 
+void ExtendedTableWidget::fitColumnsToContents(int max_width)
+{
+    if(!model())
+        return;
+
+    resizeColumnsToContents();
+
+    // Hidden columns have a width of 0 and thus are left alone here
+    for(int col = 0; col < model()->columnCount(); ++col)
+    {
+        if(columnWidth(col) > max_width)
+            setColumnWidth(col, max_width);
+    }
+}
+
 bool ExtendedTableWidget::copyMimeData(const QModelIndexList& fromIndices, QMimeData* mimeData, const bool withHeaders, const bool inSQL)
 {
     QModelIndexList indices = fromIndices;
