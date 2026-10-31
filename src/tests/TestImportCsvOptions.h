@@ -18,6 +18,10 @@ private slots:
     void importIgnoresSameNameInOtherSchema();
     void importIntoMainWhenTempHasSameName();
 
+    void matchColumnsByName_data();
+    void matchColumnsByName();
+    void matchColumnsByNameNeedsHeader();
+
 private:
     QTemporaryDir m_dir;
 };
