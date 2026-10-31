@@ -59,6 +59,16 @@ ImportCsvDialog::ImportCsvDialog(const std::vector<QString>& filenames, DBBrowse
         ui->editName->setText(file.baseName());
     }
 
+    // List the schemata to import into. The main schema is the default and comes first. The temp schema is always offered, even though SQLite
+    // only reports it once it has been used. The attached schemata follow in the same order as everywhere else.
+    ui->comboSchema->addItem("main");
+    ui->comboSchema->addItem("temp");
+    for(const auto& schema : pdb->schemata)
+    {
+        if(schema.first != "main" && schema.first != "temp")
+            ui->comboSchema->addItem(QString::fromStdString(schema.first));
+    }
+
     // Create a list of all available encodings and create an auto completion list from them
     encodingCompleter = new QCompleter(toStringList(QTextCodec::availableCodecs()), this);
     encodingCompleter->setCaseSensitivity(Qt::CaseInsensitive);
@@ -529,23 +539,27 @@ bool ImportCsvDialog::importCsv(const QString& fileName, const QString& name)
     if(fieldList.size() == 0)
         return true;
 
+    // The table is looked up and created in the selected schema
+    const sqlb::ObjectIdentifier tableId(ui->comboSchema->currentText().toStdString(), tableName.toStdString());
+    const QString tableDisplayName = QString::fromStdString(tableId.toDisplayString());
+
     // Are we importing into an existing table?
     bool importToExistingTable = false;
-    const sqlb::TablePtr tbl = pdb->getTableByName(sqlb::ObjectIdentifier("main", tableName.toStdString()));
+    const sqlb::TablePtr tbl = pdb->getTableByName(tableId);
     if(tbl)
     {
         if(tbl->fields.size() != fieldList.size())
         {
             QMessageBox::warning(this, QApplication::applicationName(),
-                                 tr("There is already a table named '%1' and an import into an existing table is only possible if the number of columns match.").arg(tableName));
+                                 tr("There is already a table named '%1' and an import into an existing table is only possible if the number of columns match.").arg(tableDisplayName));
             return true;
         } else {
             // Only ask whether to import into any table if the 'Yes to All' button has not been clicked (yet) (empty string is included).
             // Only ask whether to import into the existing table if the 'Yes' button has not been clicked (yet) for that table.
-            if(!dontAskForExistingTableAgain.contains("") && !dontAskForExistingTableAgain.contains(tableName))
+            if(!dontAskForExistingTableAgain.contains("") && !dontAskForExistingTableAgain.contains(tableDisplayName))
             {
                 int answer = QMessageBox::question(this, QApplication::applicationName(),
-                                                   tr("There is already a table named '%1'. Do you want to import the data into it?").arg(tableName),
+                                                   tr("There is already a table named '%1'. Do you want to import the data into it?").arg(tableDisplayName),
                                                    QMessageBox::Yes | QMessageBox::No | QMessageBox::YesAll | QMessageBox::Cancel, QMessageBox::No);
 
                 // Stop now if the No button has been clicked
@@ -559,7 +573,7 @@ bool ImportCsvDialog::importCsv(const QString& fileName, const QString& name)
 
                 // If the 'Yes' button has been clicked, save the answer for that table for later
                 case QMessageBox::Yes:
-                    dontAskForExistingTableAgain.append(tableName);
+                    dontAskForExistingTableAgain.append(tableDisplayName);
                     break;
                 // If the 'Yes to All' button has been clicked, save the answer for any future table name. An empty string is used in that case.
                 case QMessageBox::YesAll:
@@ -590,7 +604,7 @@ bool ImportCsvDialog::importCsv(const QString& fileName, const QString& name)
     bool failOnMissing = ui->checkFailOnMissing->isChecked();
     if(!importToExistingTable)
     {
-        if(!pdb->createTable(sqlb::ObjectIdentifier("main", tableName.toStdString()), fieldList))
+        if(!pdb->createTable(tableId, fieldList))
         {
             rollback(this, pdb, nullptr, restorepointName, 0, tr("Creating the table failed: %1").arg(pdb->lastError()));
             return false;
@@ -598,7 +612,7 @@ bool ImportCsvDialog::importCsv(const QString& fileName, const QString& name)
 
         // If we're creating the table in this import session, don't ask the user if it's okay to import more data into it. It seems
         // safe to just assume that's what they want.
-        dontAskForExistingTableAgain.append(tableName);
+        dontAskForExistingTableAgain.append(tableDisplayName);
     } else {
         // Importing into an existing table. So find out something about it's structure.
 
@@ -646,7 +660,7 @@ bool ImportCsvDialog::importCsv(const QString& fileName, const QString& name)
     }
 
     // Prepare the INSERT statement. The prepared statement can then be reused for each row to insert
-    std::string sQuery = "INSERT " + currentOnConflictStrategy() + " INTO " + sqlb::escapeIdentifier(tableName.toStdString()) + " VALUES(";
+    std::string sQuery = "INSERT " + currentOnConflictStrategy() + " INTO " + tableId.toString() + " VALUES(";
     for(size_t i=1;i<=fieldList.size();i++)
         sQuery += "?" + std::to_string(i) + ",";
     sQuery.pop_back();  // Remove last comma
