@@ -13,10 +13,23 @@ class TestSqlEditor : public QObject
 private slots:
     void initTestCase();
     void cleanupTestCase();
+    void cleanup();
 
     void zoomKeys_data();
     void zoomKeys();
     void ctrlZeroStaysWithTheApplication();
+
+    void marginClickIsOffByDefault();
+    void toggleBlockCommentUsesSelection_data();
+    void toggleBlockCommentUsesSelection();
+    void toggleLineComments_data();
+    void toggleLineComments();
+    void toggleLineCommentsIsOneUndoStep();
+    void marginClickSelectsLineByDefault();
+    void marginClickTogglesComment();
+    void marginClickOutsideMarginDoesNotToggle();
+    void marginClickSelectsLineInReadOnlyEditor();
+    void marginClickSelectsLineInCellEditor();
 
 private:
     QTemporaryDir settingsDir;

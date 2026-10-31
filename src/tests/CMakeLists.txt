@@ -130,6 +130,7 @@ set(TESTSQLEDITOR_SRC
     TestSqlEditor.cpp
     SqlEditorTestSupport.cpp
     ../sqltextedit.cpp
+    ../docktextedit.cpp
     ../ExtendedScintilla.cpp
     ../FindReplaceDialog.cpp
     ../SqlUiLexer.cpp
@@ -145,6 +146,7 @@ set(TESTSQLEDITOR_SRC
 set(TESTSQLEDITOR_HDR
     TestSqlEditor.h
     ../sqltextedit.h
+    ../docktextedit.h
     ../ExtendedScintilla.h
     ../FindReplaceDialog.h
     ../SqlUiLexer.h
