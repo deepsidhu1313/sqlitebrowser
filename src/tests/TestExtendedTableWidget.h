@@ -13,6 +13,10 @@ private slots:
     void fitColumnsToContentsCapsWideColumns();
     void fitColumnsToContentsKeepsHiddenColumnsHidden();
     void fitColumnsToContentsWithoutModel();
+    void rowHeightPaddingDefaultsToCurrentBehaviour();
+    void rowHeightFollowsRowHeightPadding();
+    void rowHeightPaddingIsNeverNegative();
+    void cleanup();
 
 private:
     QTemporaryDir m_settingsDir;

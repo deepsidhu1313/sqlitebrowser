@@ -26,6 +26,14 @@ void fillModel(QStandardItemModel& model)
     }
 }
 
+// The default row height the data browser font gets when the given padding is added to it
+int expectedRowHeight(int padding)
+{
+    QFont font(Settings::getValue("databrowser", "font").toString());
+    font.setPointSize(Settings::getValue("databrowser", "fontsize").toInt());
+    return QFontMetrics(font).height() + padding;
+}
+
 // Make every column wider than its contents so a test can tell whether the columns have been resized
 void widenColumns(ExtendedTableWidget& table, int width)
 {
@@ -33,6 +41,11 @@ void widenColumns(ExtendedTableWidget& table, int width)
         table.setColumnWidth(col, width);
 }
 
+}
+
+void TestExtendedTableWidget::cleanup()
+{
+    Settings::clearValue("databrowser", "row_padding");
 }
 
 void TestExtendedTableWidget::initTestCase()
@@ -95,4 +108,40 @@ void TestExtendedTableWidget::fitColumnsToContentsWithoutModel()
     ExtendedTableWidget table;
     table.fitColumnsToContents(300);
     QCOMPARE(table.horizontalHeader()->count(), 0);
+}
+
+void TestExtendedTableWidget::rowHeightPaddingDefaultsToCurrentBehaviour()
+{
+    // The rows have always been 10 pixels higher than the font
+    QCOMPARE(Settings::getValue("databrowser", "row_padding").toInt(), 10);
+
+    ExtendedTableWidget table;
+    table.reloadSettings();
+    QCOMPARE(table.verticalHeader()->defaultSectionSize(), expectedRowHeight(10));
+}
+
+void TestExtendedTableWidget::rowHeightFollowsRowHeightPadding()
+{
+    ExtendedTableWidget table;
+
+    Settings::setValue("databrowser", "row_padding", 2, false);
+    table.reloadSettings();
+    QCOMPARE(table.verticalHeader()->defaultSectionSize(), expectedRowHeight(2));
+
+    Settings::setValue("databrowser", "row_padding", 0, false);
+    table.reloadSettings();
+    QCOMPARE(table.verticalHeader()->defaultSectionSize(), expectedRowHeight(0));
+
+    Settings::setValue("databrowser", "row_padding", 25, false);
+    table.reloadSettings();
+    QCOMPARE(table.verticalHeader()->defaultSectionSize(), expectedRowHeight(25));
+}
+
+void TestExtendedTableWidget::rowHeightPaddingIsNeverNegative()
+{
+    // A hand-edited settings file must not be able to shrink the rows below the font height
+    ExtendedTableWidget table;
+    Settings::setValue("databrowser", "row_padding", -7, false);
+    table.reloadSettings();
+    QCOMPARE(table.verticalHeader()->defaultSectionSize(), expectedRowHeight(0));
 }
