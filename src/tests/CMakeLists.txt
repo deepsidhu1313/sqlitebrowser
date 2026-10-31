@@ -123,3 +123,37 @@ set(TESTCACHE_HDR
 add_executable(test-cache ${TESTCACHE_HDR} ${TESTCACHE_SRC})
 target_link_libraries(test-cache ${QT_MAJOR}::Test)
 add_test(NAME test-cache COMMAND $<TARGET_FILE:test-cache>)
+
+# test row loader
+
+set(TESTROWCOUNT_SRC
+    TestRowCount.cpp
+    ../RowLoader.cpp
+)
+
+set(TESTROWCOUNT_HDR
+    TestRowCount.h
+    ../RowLoader.h
+    ../RowCache.h
+)
+
+add_executable(test-row-count ${TESTROWCOUNT_HDR} ${TESTROWCOUNT_SRC})
+target_link_libraries(test-row-count ${QT_MAJOR}::Test ${LIBSQLITE_NAME})
+add_test(NAME test-row-count COMMAND $<TARGET_FILE:test-row-count>)
+if(WIN32)
+    set(_rl_extra_paths "")
+    foreach(_p IN LISTS CMAKE_PREFIX_PATH)
+        list(APPEND _rl_extra_paths "${_p}" "${_p}/bin")
+        # OpenSSL 3 Universal installer layout: bin/x86, bin/x64
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            list(APPEND _rl_extra_paths "${_p}/bin/x64")
+        else()
+            list(APPEND _rl_extra_paths "${_p}/bin/x86")
+        endif()
+    endforeach()
+    # SQLite and SQLCipher are built as DLLs in the CMake prefix by the Windows CI jobs.
+    string(REPLACE ";" "\;" TESTROWCOUNT_PATH "${_rl_extra_paths};$ENV{PATH}")
+    set_tests_properties(test-row-count PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${TESTROWCOUNT_PATH}")
+else()
+    set_tests_properties(test-row-count PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()
