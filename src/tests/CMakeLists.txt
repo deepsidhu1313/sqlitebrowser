@@ -157,3 +157,20 @@ if(WIN32)
 else()
     set_tests_properties(test-row-count PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
+
+# test settings
+
+set(TESTSETTINGS_SRC
+    TestSettings.cpp
+    ../Settings.cpp
+)
+
+set(TESTSETTINGS_HDR
+    TestSettings.h
+    ../Settings.h
+)
+
+add_executable(test-settings ${TESTSETTINGS_HDR} ${TESTSETTINGS_SRC})
+target_link_libraries(test-settings ${QT_MAJOR}::Test ${QT_MAJOR}::Widgets)
+add_test(NAME test-settings COMMAND $<TARGET_FILE:test-settings>)
+set_tests_properties(test-settings PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
