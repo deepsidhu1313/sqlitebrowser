@@ -102,13 +102,7 @@ EditTableDialog::EditTableDialog(DBBrowserDB& db, const sqlb::ObjectIdentifier& 
         ui->comboSchema->setCurrentText(QString::fromStdString(curTable.schema()));
         ui->comboSchema->blockSignals(false);
 
-        if(m_table.primaryKey())
-        {
-            ui->checkWithoutRowid->blockSignals(true);
-            ui->comboOnConflict->setCurrentText(QString::fromStdString(m_table.primaryKey()->conflictAction()).toUpper());
-            ui->checkWithoutRowid->blockSignals(false);
-        }
-
+        // The On Conflict combo box is set up by populateIndexConstraints()
         populateFields();
         populateIndexConstraints();
         populateForeignKeys();
@@ -343,6 +337,9 @@ void EditTableDialog::populateIndexConstraints()
     }
 
     ui->tableIndexConstraints->blockSignals(false);
+
+    // The primary key may have been added, removed or replaced by a new one
+    updateOnConflict();
 }
 
 void EditTableDialog::populateForeignKeys()
@@ -458,6 +455,19 @@ void EditTableDialog::reject()
 void EditTableDialog::updateSqlText()
 {
     ui->sqlTextEdit->setText(QString::fromStdString(m_table.sql(ui->comboSchema->currentText().toStdString())));
+}
+
+void EditTableDialog::updateOnConflict()
+{
+    // The combo box shows the conflict action of the primary key. When there is no primary key, or when it has just been
+    // created and doesn't have a conflict action yet, the combo box must be empty instead of showing the action of an
+    // earlier primary key. Block the signals because this only brings the combo box in sync with the table.
+    const auto pk = m_table.primaryKey();
+    const QString action = pk ? QString::fromStdString(pk->conflictAction()).toUpper() : QString();
+
+    ui->comboOnConflict->blockSignals(true);
+    ui->comboOnConflict->setCurrentIndex(std::max(0, ui->comboOnConflict->findText(action)));
+    ui->comboOnConflict->blockSignals(false);
 }
 
 void EditTableDialog::checkInput()
@@ -1249,6 +1259,7 @@ void EditTableDialog::removeIndexConstraint()
 
     // Update SQL and view
     updateSqlText();
+    updateOnConflict();
     populateFields();
 }
 

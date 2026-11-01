@@ -73,6 +73,7 @@ private:
 
     void updateColumnWidth();
     void updateSqlText();
+    void updateOnConflict();
 
     void moveCurrentField(MoveFieldDirection dir);
 
