@@ -96,6 +96,11 @@ MainWindow::MainWindow(QWidget* parent)
 
 MainWindow::~MainWindow()
 {
+    // Hide the window now, while ui is still valid. Otherwise this happens in the destructor of QWidget, i.e. after ui has been
+    // deleted below, when the dock widgets emit visibilityChanged() and toggleEditDock() accesses ui. This only matters when a
+    // window which is still visible gets destroyed, e.g. when the application is quit without closing the window first.
+    hide();
+
     delete dbSelected;
     delete dockDbSelected;
     delete ui;
