@@ -10,6 +10,8 @@ private slots:
     void sqlOutput();
     void sqlGraveAccentOutput();
     void sqlSquareBracketsOutput();
+    void escapeIdentifierEdgeCases();
+    void escapeIdentifierUnknownQuoting();
     void autoincrement();
     void notnull();
     void withoutRowid();

@@ -83,6 +83,50 @@ void TestTable::sqlSquareBracketsOutput()
     sqlb::setIdentifierQuoting(sqlb::DoubleQuotes);
 }
 
+// Restores the default identifier quoting even when a QCOMPARE() returns early
+struct ResetIdentifierQuoting
+{
+    ~ResetIdentifierQuoting() { sqlb::setIdentifierQuoting(sqlb::DoubleQuotes); }
+};
+
+void TestTable::escapeIdentifierEdgeCases()
+{
+    ResetIdentifierQuoting reset;
+
+    sqlb::setIdentifierQuoting(sqlb::DoubleQuotes);
+    QCOMPARE(sqlb::escapeIdentifier(""), "\"\"");
+    QCOMPARE(sqlb::escapeIdentifier("a\"b"), "\"a\"\"b\"");
+    QCOMPARE(sqlb::escapeIdentifier("\""), "\"\"\"\"");
+    QCOMPARE(sqlb::escapeIdentifier("it's"), "\"it's\"");
+
+    sqlb::setIdentifierQuoting(sqlb::GraveAccents);
+    QCOMPARE(sqlb::escapeIdentifier(""), "``");
+    QCOMPARE(sqlb::escapeIdentifier("a`b"), "`a``b`");
+    QCOMPARE(sqlb::escapeIdentifier("a\"b"), "`a\"b`");
+
+    sqlb::setIdentifierQuoting(sqlb::SquareBrackets);
+    QCOMPARE(sqlb::escapeIdentifier(""), "[]");
+    QCOMPARE(sqlb::escapeIdentifier("a\"b"), "[a\"b]");
+}
+
+void TestTable::escapeIdentifierUnknownQuoting()
+{
+    ResetIdentifierQuoting reset;
+
+    // The quoting style is read from the settings as a plain integer and cast to the enum, so a
+    // value that isn't one of the known styles can reach escapeIdentifier(). 3 is outside of the
+    // enumerators but still inside the value range of the enum, so the cast itself is well defined.
+    sqlb::setIdentifierQuoting(static_cast<sqlb::escapeQuoting>(3));
+
+    // Unknown styles must behave like the default, i.e. double quotes, which is also what
+    // getIdentifierQuoteChar() reports for them. Without a fallback the function returns nothing
+    // (undefined behaviour) here.
+    QCOMPARE(sqlb::getIdentifierQuoteChar(), '"');
+    QCOMPARE(sqlb::escapeIdentifier("abc"), "\"abc\"");
+    QCOMPARE(sqlb::escapeIdentifier(""), "\"\"");
+    QCOMPARE(sqlb::escapeIdentifier("a\"b"), "\"a\"\"b\"");
+}
+
 void TestTable::autoincrement()
 {
     Table tt("testtable");

@@ -45,11 +45,13 @@ std::string escapeIdentifier(const std::string& id)
         // selected.
         return '[' + id + ']';
     case DoubleQuotes:
-        // This may produce a 'control reaches end of non-void function' warning if the
-        // default branch is removed, even though we have covered all possibilities in the
-        // switch statement.
-        return '"' + duplicate_char(id, '"') + '"';
+        break;
     }
+
+    // This is the default style but it is also what we use for values which aren't part of the
+    // enum. The quoting style is read from the settings as a plain integer, so such a value can
+    // show up here and falling off the end of the function would be undefined behaviour.
+    return '"' + duplicate_char(id, '"') + '"';
 }
 
 std::string escapeString(const std::string& literal)
