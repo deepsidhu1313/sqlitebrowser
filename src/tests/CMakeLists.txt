@@ -180,3 +180,60 @@ if(WIN32)
 else()
     set_tests_properties(test-db-config PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
+
+# test busy timeout
+
+set(TESTBUSYTIMEOUT_SRC
+    TestBusyTimeout.cpp
+    ../sqlitedb.cpp
+    ../CipherDialog.cpp
+    ../CipherSettings.cpp
+    ../Data.cpp
+    ../Settings.cpp
+    ../sql/sqlitetypes.cpp
+    ../sql/Query.cpp
+    ../sql/ObjectIdentifier.cpp
+    ../sql/parser/ParserDriver.cpp
+    ../sql/parser/sqlite3_lexer.cpp
+    ../sql/parser/sqlite3_parser.cpp
+)
+
+set(TESTBUSYTIMEOUT_HDR
+    TestBusyTimeout.h
+    ../sqlitedb.h
+    ../CipherDialog.h
+    ../CipherSettings.h
+    ../Data.h
+    ../Settings.h
+    ../sql/sqlitetypes.h
+    ../sql/Query.h
+    ../sql/ObjectIdentifier.h
+    ../sql/parser/ParserDriver.h
+    ../sql/parser/sqlite3_lexer.h
+    ../sql/parser/sqlite3_location.h
+    ../sql/parser/sqlite3_parser.hpp
+)
+
+add_executable(test-busy-timeout ${TESTBUSYTIMEOUT_HDR} ${TESTBUSYTIMEOUT_SRC} ../CipherDialog.ui)
+if(QT_MAJOR STREQUAL "Qt6")
+    set_target_properties(test-busy-timeout PROPERTIES AUTOUIC_OPTIONS "--connections=string")
+endif()
+target_link_libraries(test-busy-timeout ${QT_MAJOR}::Test ${QT_MAJOR}::Widgets ${QT_MAJOR}::Concurrent ${LIBSQLITE_NAME} ${QT5_COMPAT})
+add_test(NAME test-busy-timeout COMMAND $<TARGET_FILE:test-busy-timeout>)
+if(WIN32)
+    set(_bt_extra_paths "")
+    foreach(_p IN LISTS CMAKE_PREFIX_PATH)
+        list(APPEND _bt_extra_paths "${_p}" "${_p}/bin")
+        # OpenSSL 3 Universal installer layout: bin/x86, bin/x64
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            list(APPEND _bt_extra_paths "${_p}/bin/x64")
+        else()
+            list(APPEND _bt_extra_paths "${_p}/bin/x86")
+        endif()
+    endforeach()
+    # SQLite and SQLCipher are built as DLLs in the CMake prefix by the Windows CI jobs.
+    string(REPLACE ";" "\;" TESTBUSYTIMEOUT_PATH "${_bt_extra_paths};$ENV{PATH}")
+    set_tests_properties(test-busy-timeout PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${TESTBUSYTIMEOUT_PATH}")
+else()
+    set_tests_properties(test-busy-timeout PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()

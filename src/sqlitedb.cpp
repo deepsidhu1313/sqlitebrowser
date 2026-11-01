@@ -51,6 +51,13 @@ typename MapType::const_iterator findCaseInsensitive(const MapType& map, const s
     });
 }
 
+// Makes SQLite wait for the time configured in the preferences for locks held by other connections to the same database file instead of
+// failing with "database is locked" right away. A timeout of 0 is SQLite's default and turns waiting off.
+static void applyBusyTimeout(sqlite3* db)
+{
+    sqlite3_busy_timeout(db, Settings::getValue("db", "busytimeout").toInt());
+}
+
 // Files inside WSL are served to Windows over the 9P protocol, which doesn't support the byte-range locks
 // SQLite relies on. Every attempt to read such a file fails with "database is locked", so these files need
 // to be opened using SQLite's non-locking VFS. Returns nullptr (the default VFS) for all other files.
@@ -288,6 +295,8 @@ bool DBBrowserDB::open(const QString& db, bool readOnly)
         return false;
     }
 
+    applyBusyTimeout(_db);
+
     // Deny ATTACH statements involving files inside WSL, including those executed by the user
     sqlite3_set_authorizer(_db, wslAttachAuthorizer, vfs ? this : nullptr);
 
@@ -498,6 +507,7 @@ bool DBBrowserDB::tryEncryptionSettings(const QString& filePath, bool* encrypted
     sqlite3* dbHandle;
     if(sqlite3_open_v2(filePath.toUtf8(), &dbHandle, SQLITE_OPEN_READONLY, vfsForFile(filePath)) != SQLITE_OK)
         return false;
+    applyBusyTimeout(dbHandle);
 
     // Try reading from database
 
@@ -635,6 +645,7 @@ bool DBBrowserDB::tryEncryptionSettings(const QString& filePath, bool* encrypted
             sqlite3_close_v2(dbHandle);
             if(sqlite3_open_v2(filePath.toUtf8(), &dbHandle, SQLITE_OPEN_READONLY, vfsForFile(filePath)) != SQLITE_OK)
                 return false;
+            applyBusyTimeout(dbHandle);
 
             // Set the key
             sqlite3_exec(dbHandle, ("PRAGMA key = " + cipherSettings->getPassword()).c_str(), nullptr, nullptr, nullptr);

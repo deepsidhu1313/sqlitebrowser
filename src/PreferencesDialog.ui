@@ -810,6 +810,35 @@ in new project file</string>
            </property>
           </widget>
          </item>
+         <item row="8" column="0">
+          <widget class="QLabel" name="labelBusyTimeout">
+           <property name="toolTip">
+            <string>How long to wait for another program or connection that has locked the database before reporting that the database is locked. 0 reports it immediately. This applies to databases opened afterwards.</string>
+           </property>
+           <property name="text">
+            <string>Wait for locked databases</string>
+           </property>
+           <property name="buddy">
+            <cstring>spinBusyTimeout</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="1">
+          <widget class="QSpinBox" name="spinBusyTimeout">
+           <property name="toolTip">
+            <string>How long to wait for another program or connection that has locked the database before reporting that the database is locked. 0 reports it immediately. This applies to databases opened afterwards.</string>
+           </property>
+           <property name="suffix">
+            <string> ms</string>
+           </property>
+           <property name="maximum">
+            <number>600000</number>
+           </property>
+           <property name="singleStep">
+            <number>1000</number>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
        <item>
