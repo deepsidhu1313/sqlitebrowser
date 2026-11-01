@@ -420,6 +420,19 @@ QVariant SqliteTableModel::data(const QModelIndex &index, int role) const
                 return m_formattedFgColour;
         }
         // Regular case (not null, not binary, no matching conditional format and no display format)
+        if(m_colourByType && column < m_vDataTypes.size())
+        {
+            // Columns of other types, e.g. blobs or untyped columns, keep the regular colour
+            switch(m_vDataTypes.at(column))
+            {
+            case SQLITE_INTEGER:
+                return m_intFgColour;
+            case SQLITE_FLOAT:
+                return m_realFgColour;
+            case SQLITE_TEXT:
+                return m_textFgColour;
+            }
+        }
         return m_regFgColour;
     } else if (role == Qt::BackgroundRole) {
         if(!row_available)
@@ -1184,6 +1197,10 @@ void SqliteTableModel::reloadSettings()
     m_nullBgColour = QColor(Settings::getValue("databrowser", "null_bg_colour").toString());
     m_binFgColour = QColor(Settings::getValue("databrowser", "bin_fg_colour").toString());
     m_binBgColour = QColor(Settings::getValue("databrowser", "bin_bg_colour").toString());
+    m_colourByType = Settings::getValue("databrowser", "colour_by_type").toBool();
+    m_intFgColour = QColor(Settings::getValue("databrowser", "int_fg_colour").toString());
+    m_realFgColour = QColor(Settings::getValue("databrowser", "real_fg_colour").toString());
+    m_textFgColour = QColor(Settings::getValue("databrowser", "text_fg_colour").toString());
     m_font = QFont(Settings::getValue("databrowser", "font").toString());
     m_font.setPointSize(Settings::getValue("databrowser", "fontsize").toInt());
     m_symbolLimit = Settings::getValue("databrowser", "symbol_limit").toInt();

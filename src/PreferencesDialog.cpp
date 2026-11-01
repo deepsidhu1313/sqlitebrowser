@@ -31,6 +31,9 @@ PreferencesDialog::PreferencesDialog(QWidget* parent, Tabs tab)
     ui->fr_null_fg->installEventFilter(this);
     ui->fr_formatted_bg->installEventFilter(this);
     ui->fr_formatted_fg->installEventFilter(this);
+    ui->fr_int_fg->installEventFilter(this);
+    ui->fr_real_fg->installEventFilter(this);
+    ui->fr_text_fg->installEventFilter(this);
 
     connect(ui->comboDataBrowserFont, static_cast<void (QFontComboBox::*)(int)>(&QFontComboBox::currentIndexChanged), this, &PreferencesDialog::updatePreviewFont);
     connect(ui->spinDataBrowserFontSize, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &PreferencesDialog::updatePreviewFont);
@@ -118,11 +121,15 @@ void PreferencesDialog::loadSettings()
     loadColorSetting(ui->fr_reg_bg, "reg_bg");
     loadColorSetting(ui->fr_formatted_fg, "formatted_fg");
     loadColorSetting(ui->fr_formatted_bg, "formatted_bg");
+    loadColorSetting(ui->fr_int_fg, "int_fg");
+    loadColorSetting(ui->fr_real_fg, "real_fg");
+    loadColorSetting(ui->fr_text_fg, "text_fg");
 
     ui->spinSymbolLimit->setValue(Settings::getValue("databrowser", "symbol_limit").toInt());
     ui->spinCompleteThreshold->setValue(Settings::getValue("databrowser", "complete_threshold").toInt());
     ui->checkShowImagesInline->setChecked(Settings::getValue("databrowser", "image_preview").toBool());
     ui->checkCellWordWrap->setChecked(Settings::getValue("databrowser", "cell_word_wrap").toBool());
+    ui->checkColourByType->setChecked(Settings::getValue("databrowser", "colour_by_type").toBool());
     ui->txtNull->setText(Settings::getValue("databrowser", "null_text").toString());
     ui->txtBlob->setText(Settings::getValue("databrowser", "blob_text").toString());
     ui->editFilterEscape->setText(Settings::getValue("databrowser", "filter_escape").toString());
@@ -218,6 +225,10 @@ void PreferencesDialog::saveSettings(bool accept)
     saveColorSetting(ui->fr_formatted_bg, "formatted_bg");
     saveColorSetting(ui->fr_bin_fg, "bin_fg");
     saveColorSetting(ui->fr_bin_bg, "bin_bg");
+    saveColorSetting(ui->fr_int_fg, "int_fg");
+    saveColorSetting(ui->fr_real_fg, "real_fg");
+    saveColorSetting(ui->fr_text_fg, "text_fg");
+    Settings::setValue("databrowser", "colour_by_type", ui->checkColourByType->isChecked());
     Settings::setValue("databrowser", "symbol_limit", ui->spinSymbolLimit->value());
     Settings::setValue("databrowser", "complete_threshold", ui->spinCompleteThreshold->value());
     Settings::setValue("databrowser", "null_text", ui->txtNull->text());
@@ -307,7 +318,8 @@ bool PreferencesDialog::eventFilter(QObject *obj, QEvent *event)
     if (obj == ui->fr_bin_bg  || obj == ui->fr_bin_fg ||
         obj == ui->fr_reg_bg  || obj == ui->fr_reg_fg ||
         obj == ui->fr_formatted_bg || obj == ui->fr_formatted_fg ||
-        obj == ui->fr_null_bg || obj == ui->fr_null_fg)
+        obj == ui->fr_null_bg || obj == ui->fr_null_fg ||
+        obj == ui->fr_int_fg || obj == ui->fr_real_fg || obj == ui->fr_text_fg)
     {
         if (event->type() == QEvent::KeyPress)
         {
@@ -520,6 +532,15 @@ void PreferencesDialog::setColorSetting(QFrame *frame, const QColor &color)
     } else if (frame ==  ui->fr_null_fg) {
         line = ui->txtNull;
         role = line->foregroundRole();
+    } else if (frame ==  ui->fr_int_fg) {
+        line = ui->txtInteger;
+        role = line->foregroundRole();
+    } else if (frame ==  ui->fr_real_fg) {
+        line = ui->txtReal;
+        role = line->foregroundRole();
+    } else if (frame ==  ui->fr_text_fg) {
+        line = ui->txtTextType;
+        role = line->foregroundRole();
     } else
         return;
 
@@ -554,6 +575,9 @@ void PreferencesDialog::adjustColorsToStyle(int style)
     setColorSetting(ui->fr_reg_bg, Settings::getDefaultColorValue("databrowser", "reg_bg_colour", appStyle));
     setColorSetting(ui->fr_formatted_fg, Settings::getDefaultColorValue("databrowser", "formatted_fg_colour", appStyle));
     setColorSetting(ui->fr_formatted_bg, Settings::getDefaultColorValue("databrowser", "formatted_bg_colour", appStyle));
+    setColorSetting(ui->fr_int_fg, Settings::getDefaultColorValue("databrowser", "int_fg_colour", appStyle));
+    setColorSetting(ui->fr_real_fg, Settings::getDefaultColorValue("databrowser", "real_fg_colour", appStyle));
+    setColorSetting(ui->fr_text_fg, Settings::getDefaultColorValue("databrowser", "text_fg_colour", appStyle));
 
     for(int i=0; i < ui->treeSyntaxHighlighting->topLevelItemCount(); ++i)
     {
@@ -572,6 +596,9 @@ void PreferencesDialog::updatePreviewFont()
         textFont.setPointSize(ui->spinDataBrowserFontSize->value());
         ui->txtRegular->setFont(textFont);
         ui->txtFormatted->setFont(textFont);
+        ui->txtInteger->setFont(textFont);
+        ui->txtReal->setFont(textFont);
+        ui->txtTextType->setFont(textFont);
         textFont.setItalic(true);
         ui->txtNull->setFont(textFont);
         ui->txtBlob->setFont(textFont);

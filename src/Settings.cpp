@@ -321,6 +321,8 @@ QVariant Settings::getDefaultValue(const std::string& group, const std::string& 
             return false;
         if(name == "cell_word_wrap")
             return true;
+        if(name == "colour_by_type")
+            return false;
         if(name == "indent_compact")
             return false;
         if (name == "sort_keys")
@@ -477,6 +479,24 @@ QVariant Settings::getDefaultValue(const std::string& group, const std::string& 
     return QVariant();
 }
 
+// Colours for the values of the columns of the different types. They are only used if the colouring by type is turned on. There
+// are two sets of them in order to be readable on a light and on a dark background.
+static QColor typeForegroundColour(const std::string& name, bool dark_background)
+{
+    if(name == "int_fg_colour")
+        return dark_background ? QColor(0x6F, 0xA8, 0xFF) : QColor(0x0B, 0x5F, 0xD1);
+    if(name == "real_fg_colour")
+        return dark_background ? QColor(0xD0, 0x8C, 0xFF) : QColor(0x8E, 0x2D, 0xB5);
+    if(name == "text_fg_colour")
+        return dark_background ? QColor(0x7B, 0xD8, 0x8F) : QColor(0x1B, 0x7F, 0x3A);
+    return QColor();
+}
+
+static bool isTypeForegroundColour(const std::string& name)
+{
+    return name == "int_fg_colour" || name == "real_fg_colour" || name == "text_fg_colour";
+}
+
 QColor Settings::getDefaultColorValue(const std::string& group, const std::string& name, AppStyle style)
 {
     // Data Browser/NULL & Binary Fields
@@ -502,6 +522,8 @@ QColor Settings::getDefaultColorValue(const std::string& group, const std::strin
                 return QColor(Qt::lightGray).name();
             if(name == "bin_bg_colour")
                 return QPalette().color(QPalette::Active, QPalette::Base).name();
+            if(isTypeForegroundColour(name))
+                return typeForegroundColour(name, QPalette().color(QPalette::Active, QPalette::Base).lightness() < 128);
             break;
         case DarkStyle :
             if(name == "null_fg_colour")
@@ -520,6 +542,8 @@ QColor Settings::getDefaultColorValue(const std::string& group, const std::strin
                 return QColor(0x78, 0x78, 0x78);
             if(name == "bin_bg_colour")
                 return QColor(0x19, 0x23, 0x2D);
+            if(isTypeForegroundColour(name))
+                return typeForegroundColour(name, true);
             break;
         case LightStyle :
             if(name == "null_fg_colour" || name == "bin_fg_colour")
@@ -534,6 +558,8 @@ QColor Settings::getDefaultColorValue(const std::string& group, const std::strin
                 return QColor(0x00, 0x00, 0x00);
             if(name == "formatted_bg_colour")
                 return QColor(0xFA, 0xFA, 0xFA);
+            if(isTypeForegroundColour(name))
+                return typeForegroundColour(name, false);
             break;
         }
     }

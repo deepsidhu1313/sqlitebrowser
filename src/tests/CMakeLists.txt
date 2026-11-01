@@ -188,3 +188,68 @@ if(WIN32)
 else()
     set_tests_properties(test-filter-words PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
+
+# test type colours
+
+set(TESTTYPECOLOURS_SRC
+    TestTypeColours.cpp
+    ../sqlitedb.cpp
+    ../sqlitetablemodel.cpp
+    ../RowLoader.cpp
+    ../CipherDialog.cpp
+    ../CipherSettings.cpp
+    ../CondFormat.cpp
+    ../Data.cpp
+    ../Settings.cpp
+    ../sql/sqlitetypes.cpp
+    ../sql/Query.cpp
+    ../sql/ObjectIdentifier.cpp
+    ../sql/parser/ParserDriver.cpp
+    ../sql/parser/sqlite3_lexer.cpp
+    ../sql/parser/sqlite3_parser.cpp
+)
+
+set(TESTTYPECOLOURS_HDR
+    TestTypeColours.h
+    ../sqlitedb.h
+    ../sqlitetablemodel.h
+    ../RowLoader.h
+    ../RowCache.h
+    ../CipherDialog.h
+    ../CipherSettings.h
+    ../CondFormat.h
+    ../Data.h
+    ../Settings.h
+    ../sql/sqlitetypes.h
+    ../sql/Query.h
+    ../sql/ObjectIdentifier.h
+    ../sql/parser/ParserDriver.h
+    ../sql/parser/sqlite3_lexer.h
+    ../sql/parser/sqlite3_location.h
+    ../sql/parser/sqlite3_parser.hpp
+)
+
+add_executable(test-type-colours ${TESTTYPECOLOURS_HDR} ${TESTTYPECOLOURS_SRC} ../CipherDialog.ui)
+target_include_directories(test-type-colours SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/libs/json)
+if(QT_MAJOR STREQUAL "Qt6")
+    set_target_properties(test-type-colours PROPERTIES AUTOUIC_OPTIONS "--connections=string")
+endif()
+target_link_libraries(test-type-colours ${QT_MAJOR}::Test ${QT_MAJOR}::Widgets ${QT_MAJOR}::Concurrent ${LIBSQLITE_NAME} ${QT5_COMPAT})
+add_test(NAME test-type-colours COMMAND $<TARGET_FILE:test-type-colours>)
+if(WIN32)
+    set(_tc_extra_paths "")
+    foreach(_p IN LISTS CMAKE_PREFIX_PATH)
+        list(APPEND _tc_extra_paths "${_p}" "${_p}/bin")
+        # OpenSSL 3 Universal installer layout: bin/x86, bin/x64
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            list(APPEND _tc_extra_paths "${_p}/bin/x64")
+        else()
+            list(APPEND _tc_extra_paths "${_p}/bin/x86")
+        endif()
+    endforeach()
+    # SQLite and SQLCipher are built as DLLs in the CMake prefix by the Windows CI jobs.
+    string(REPLACE ";" "\;" TESTTYPECOLOURS_PATH "${_tc_extra_paths};$ENV{PATH}")
+    set_tests_properties(test-type-colours PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${TESTTYPECOLOURS_PATH}")
+else()
+    set_tests_properties(test-type-colours PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()

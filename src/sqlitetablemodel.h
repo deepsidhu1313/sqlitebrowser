@@ -243,6 +243,10 @@ private:
     QColor m_nullBgColour;
     QColor m_binFgColour;
     QColor m_binBgColour;
+    bool m_colourByType;
+    QColor m_intFgColour;
+    QColor m_realFgColour;
+    QColor m_textFgColour;
     QFont m_font;
     int m_symbolLimit;
     int m_rowsLimit;
