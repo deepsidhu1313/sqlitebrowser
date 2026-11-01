@@ -1996,28 +1996,33 @@ void MainWindow::dropEvent(QDropEvent *event)
             fileOpen(fileName);
             return;
         }
-        bool ok;
         const QString open = tr("Open Database or Project");
         const QString attach = tr("Attach Database...");
         const QString import = tr("Import CSV file(s)...");
-        QString action = QInputDialog::getItem(this,
-                                   qApp->applicationName(),
-                                   tr("Select the action to apply to the dropped file(s). <br/>"
-                                      "Note: only 'Import' will process more than one file.",
-                                      "Note for translation: Although there is no %n in the original, "
-                                      "you can use the numerus-form to adjust 'files(s)' and remove the note when n = 1. "
-                                      "Including %n in the translation will also work.",
-                                      urls.count()),
-                                   {open, attach, import},
-                                   0,
-                                   false,
-                                   &ok);
-        if(ok) {
-            if (action == open) {
+        QMessageBox msgBox(QMessageBox::Question, qApp->applicationName(),
+                           tr("Select the action to apply to the dropped file(s). <br/>"
+                              "Note: only 'Import' will process more than one file.",
+                              "Note for translation: Although there is no %n in the original, "
+                              "you can use the numerus-form to adjust 'files(s)' and remove the note when n = 1. "
+                              "Including %n in the translation will also work.",
+                              urls.count()),
+                           QMessageBox::NoButton, this);
+        // All the actions are shown as buttons, so choosing one takes a single click. Opening the file is the default action.
+        QPushButton* openButton = msgBox.addButton(open, QMessageBox::AcceptRole);
+        QPushButton* attachButton = msgBox.addButton(attach, QMessageBox::AcceptRole);
+        QPushButton* importButton = msgBox.addButton(import, QMessageBox::AcceptRole);
+        QPushButton* cancelButton = msgBox.addButton(QMessageBox::Cancel);
+        msgBox.setDefaultButton(openButton);
+        msgBox.setEscapeButton(cancelButton);
+        msgBox.exec();
+
+        const QAbstractButton* action = msgBox.clickedButton();
+        if(action && action != cancelButton) {
+            if (action == openButton) {
                 fileOpen(fileName);
-            } else if (action == attach) {
+            } else if (action == attachButton) {
                 fileAttach(fileName);
-            } else if (action == import) {
+            } else if (action == importButton) {
 
                 std::vector<QString> validFiles;
                 for(const auto& url : urls) {
