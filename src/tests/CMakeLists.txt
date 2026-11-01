@@ -237,3 +237,19 @@ if(WIN32)
 else()
     set_tests_properties(test-busy-timeout PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
+
+# test bson
+
+set(TESTBSON_SRC
+    TestBson.cpp
+    ../BsonUtil.cpp
+)
+
+set(TESTBSON_HDR
+    TestBson.h
+    ../BsonUtil.h
+)
+
+add_executable(test-bson ${TESTBSON_HDR} ${TESTBSON_SRC})
+target_link_libraries(test-bson ${QT_MAJOR}::Test)
+add_test(NAME test-bson COMMAND $<TARGET_FILE:test-bson>)
