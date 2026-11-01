@@ -140,3 +140,68 @@ add_executable(test-combo-wheel-filter ${TESTCOMBOWHEELFILTER_HDR} ${TESTCOMBOWH
 target_link_libraries(test-combo-wheel-filter ${QT_MAJOR}::Test ${QT_MAJOR}::Widgets)
 add_test(NAME test-combo-wheel-filter COMMAND $<TARGET_FILE:test-combo-wheel-filter>)
 set_tests_properties(test-combo-wheel-filter PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# test hot journal
+
+set(TESTHOTJOURNAL_SRC
+    TestHotJournal.cpp
+    ../sqlitedb.cpp
+    ../sqlitetablemodel.cpp
+    ../RowLoader.cpp
+    ../CipherDialog.cpp
+    ../CipherSettings.cpp
+    ../CondFormat.cpp
+    ../Data.cpp
+    ../Settings.cpp
+    ../sql/sqlitetypes.cpp
+    ../sql/Query.cpp
+    ../sql/ObjectIdentifier.cpp
+    ../sql/parser/ParserDriver.cpp
+    ../sql/parser/sqlite3_lexer.cpp
+    ../sql/parser/sqlite3_parser.cpp
+)
+
+set(TESTHOTJOURNAL_HDR
+    TestHotJournal.h
+    ../sqlitedb.h
+    ../sqlitetablemodel.h
+    ../RowLoader.h
+    ../RowCache.h
+    ../CipherDialog.h
+    ../CipherSettings.h
+    ../CondFormat.h
+    ../Data.h
+    ../Settings.h
+    ../sql/sqlitetypes.h
+    ../sql/Query.h
+    ../sql/ObjectIdentifier.h
+    ../sql/parser/ParserDriver.h
+    ../sql/parser/sqlite3_lexer.h
+    ../sql/parser/sqlite3_location.h
+    ../sql/parser/sqlite3_parser.hpp
+)
+
+add_executable(test-hot-journal ${TESTHOTJOURNAL_HDR} ${TESTHOTJOURNAL_SRC} ../CipherDialog.ui)
+target_include_directories(test-hot-journal SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/libs/json)
+if(QT_MAJOR STREQUAL "Qt6")
+    set_target_properties(test-hot-journal PROPERTIES AUTOUIC_OPTIONS "--connections=string")
+endif()
+target_link_libraries(test-hot-journal ${QT_MAJOR}::Test ${QT_MAJOR}::Widgets ${QT_MAJOR}::Concurrent ${LIBSQLITE_NAME} ${QT5_COMPAT})
+add_test(NAME test-hot-journal COMMAND $<TARGET_FILE:test-hot-journal>)
+if(WIN32)
+    set(_hj_extra_paths "")
+    foreach(_p IN LISTS CMAKE_PREFIX_PATH)
+        list(APPEND _hj_extra_paths "${_p}" "${_p}/bin")
+        # OpenSSL 3 Universal installer layout: bin/x86, bin/x64
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            list(APPEND _hj_extra_paths "${_p}/bin/x64")
+        else()
+            list(APPEND _hj_extra_paths "${_p}/bin/x86")
+        endif()
+    endforeach()
+    # SQLite and SQLCipher are built as DLLs in the CMake prefix by the Windows CI jobs.
+    string(REPLACE ";" "\\;" TESTHOTJOURNAL_PATH "${_hj_extra_paths};$ENV{PATH}")
+    set_tests_properties(test-hot-journal PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${TESTHOTJOURNAL_PATH}")
+else()
+    set_tests_properties(test-hot-journal PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()

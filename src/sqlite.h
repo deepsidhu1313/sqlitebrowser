@@ -22,4 +22,9 @@
     #define SQLITE_DETERMINISTIC 0
 #endif
 
+// The same for the extended result code of a read-only connection which can't roll back a hot journal
+#ifndef SQLITE_READONLY_ROLLBACK
+    #define SQLITE_READONLY_ROLLBACK (SQLITE_READONLY | (3<<8))
+#endif
+
 #endif

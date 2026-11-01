@@ -277,7 +277,7 @@ bool DBBrowserDB::open(const QString& db, bool readOnly)
 
     // Get encryption settings for database file
     CipherSettings cipherSettings;
-    if(tryEncryptionSettings(db, &isEncrypted, &cipherSettings) == false)
+    if(tryEncryptionSettings(db, &isEncrypted, &cipherSettings, readOnly) == false)
         return false;
 
     // Open database file
@@ -428,7 +428,7 @@ bool DBBrowserDB::attach(const QString& filePath, QString attach_as)
     // Try encryption settings
     CipherSettings cipherSettings;
     bool is_encrypted;
-    if(tryEncryptionSettings(filePath, &is_encrypted, &cipherSettings) == false)
+    if(tryEncryptionSettings(filePath, &is_encrypted, &cipherSettings, isReadOnly) == false)
         return false;
 
     // Attach database
@@ -490,7 +490,7 @@ bool DBBrowserDB::attach(const QString& filePath, QString attach_as)
     return true;
 }
 
-bool DBBrowserDB::tryEncryptionSettings(const QString& filePath, bool* encrypted, CipherSettings* cipherSettings) const
+bool DBBrowserDB::tryEncryptionSettings(const QString& filePath, bool* encrypted, CipherSettings* cipherSettings, bool readOnly) const
 {
     lastErrorMessage = tr("Invalid file format");
 
@@ -525,12 +525,36 @@ bool DBBrowserDB::tryEncryptionSettings(const QString& filePath, bool* encrypted
 #endif
 
     *encrypted = false;
+    bool probeCanWrite = false;
     while(true)
     {
         const std::string statement = "SELECT COUNT(*) FROM sqlite_master;";
         sqlite3_stmt* vm;
         const char* tail;
         int err = sqlite3_prepare_v2(dbHandle, statement.c_str(), static_cast<int>(statement.size()), &vm, &tail);
+        if(err == SQLITE_READONLY && sqlite3_extended_errcode(dbHandle) == SQLITE_READONLY_ROLLBACK)
+        {
+            // A program which stopped in the middle of a transaction has left a hot journal behind. SQLite has to roll back that transaction
+            // before it can read the database, which is not possible through a read-only connection. The database is going to be opened with write
+            // access anyway, so let the connection used here do the rolling back, once, unless it was asked not to modify the file.
+            sqlite3_close_v2(dbHandle);
+            if(!readOnly && !probeCanWrite)
+            {
+                probeCanWrite = true;
+                if(sqlite3_open_v2(filePath.toUtf8(), &dbHandle, SQLITE_OPEN_READWRITE, vfsForFile(filePath)) != SQLITE_OK)
+                {
+                    lastErrorMessage = QString::fromUtf8(sqlite3_errmsg(dbHandle));
+                    sqlite3_close_v2(dbHandle);
+                    return false;
+                }
+                continue;
+            }
+
+            lastErrorMessage = tr("This database has a hot journal, a rollback journal left behind by a program that did not finish a transaction. "
+                                  "SQLite has to roll that transaction back before the database can be read, which needs write access to the database "
+                                  "file and its folder. Make sure you have write access and open it without the read-only option.");
+            return false;
+        }
         if(err == SQLITE_BUSY || err == SQLITE_PERM || err == SQLITE_NOMEM || err == SQLITE_IOERR || err == SQLITE_CORRUPT || err == SQLITE_CANTOPEN || err == SQLITE_PROTOCOL)
         {
             lastErrorMessage = QString::fromUtf8(sqlite3_errmsg(dbHandle));
