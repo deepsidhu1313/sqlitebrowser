@@ -1,12 +1,15 @@
 #include "FilterLineEdit.h"
 #include "Settings.h"
 
+#include <QAbstractItemView>
 #include <QTimer>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QWhatsThis>
 #include <QDesktopServices>
 #include <QUrl>
+
+#include <algorithm>
 
 FilterLineEdit::FilterLineEdit(QWidget* parent, std::vector<FilterLineEdit*>* filters, size_t columnnum) :
     QLineEdit(parent),
@@ -65,6 +68,40 @@ void FilterLineEdit::delayedSignalTimerTriggered()
         // Remember this value for the next time
         lastValue = text();
     }
+}
+
+void FilterLineEdit::keyPressEvent(QKeyEvent* event)
+{
+    // The Down key moves from the filter to the cell below it, as in a spreadsheet
+    if(event->key() == Qt::Key_Down && event->modifiers() == Qt::NoModifier && focusGrid())
+        return;
+
+    QLineEdit::keyPressEvent(event);
+}
+
+bool FilterLineEdit::focusGrid()
+{
+    // The parent is the table header and the grandparent the table. For the filters of the frozen columns this is the table with the
+    // frozen columns, which can't have the focus. In this case use the table it is a part of.
+    for(QWidget* widget = parentWidget() ? parentWidget()->parentWidget() : nullptr; widget; widget = widget->parentWidget())
+    {
+        QAbstractItemView* view = qobject_cast<QAbstractItemView*>(widget);
+        if(!view || view->focusPolicy() == Qt::NoFocus)
+            continue;
+
+        const QAbstractItemModel* model = view->model();
+        if(!model || model->rowCount() == 0 || columnNumber >= static_cast<size_t>(model->columnCount()))
+            return false;
+
+        // Stay in the row the user was in or else start with the topmost row that is visible
+        const QModelIndex current = view->currentIndex();
+        const int row = current.isValid() ? current.row() : std::max(view->indexAt(QPoint(0, 0)).row(), 0);
+        view->setCurrentIndex(model->index(row, static_cast<int>(columnNumber)));
+        view->setFocus();
+        return true;
+    }
+
+    return false;
 }
 
 void FilterLineEdit::keyReleaseEvent(QKeyEvent* event)

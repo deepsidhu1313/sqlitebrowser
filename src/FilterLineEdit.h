@@ -31,11 +31,14 @@ signals:
     void filterFocused();
 
 protected:
+    void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
     void focusInEvent(QFocusEvent* event) override;
     void setFilterHelper(const QString& filterOperator, const QString& operatorSuffix = QString());
 
 private:
+    bool focusGrid();
+
     std::vector<FilterLineEdit*>* filterList;
     size_t columnNumber;
     QTimer* delaySignalTimer;

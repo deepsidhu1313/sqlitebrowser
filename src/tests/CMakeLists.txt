@@ -205,3 +205,24 @@ if(WIN32)
 else()
     set_tests_properties(test-hot-journal PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 endif()
+
+# test filter navigation
+
+set(TESTFILTERNAVIGATION_SRC
+    TestFilterNavigation.cpp
+    ../FilterLineEdit.cpp
+    ../FilterTableHeader.cpp
+    ../Settings.cpp
+)
+
+set(TESTFILTERNAVIGATION_HDR
+    TestFilterNavigation.h
+    ../FilterLineEdit.h
+    ../FilterTableHeader.h
+    ../Settings.h
+)
+
+add_executable(test-filter-navigation ${TESTFILTERNAVIGATION_HDR} ${TESTFILTERNAVIGATION_SRC})
+target_link_libraries(test-filter-navigation ${QT_MAJOR}::Test ${QT_MAJOR}::Widgets ${QT5_COMPAT})
+add_test(NAME test-filter-navigation COMMAND $<TARGET_FILE:test-filter-navigation>)
+set_tests_properties(test-filter-navigation PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
