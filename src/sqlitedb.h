@@ -260,6 +260,25 @@ public:
     static const QStringList journalModeValues;
     static const QStringList lockingModeValues;
 
+    // Connection settings which can be changed with sqlite3_db_config(). Unlike pragmas these are neither stored in the database file
+    // nor do they survive closing the database.
+    enum class DbConfigOption
+    {
+        EnableTrigger,
+        EnableFts3Tokenizer,
+        Defensive,
+        DqsDml,
+        DqsDdl,
+        TrustedSchema,
+    };
+
+    // Query the current value of a connection setting. This returns false if there is no open database or if the SQLite library in use
+    // doesn't know about this setting.
+    bool getDbConfig(DbConfigOption option, bool& value) const;
+
+    // Change a connection setting. This returns true if the setting has the requested value afterwards.
+    bool setDbConfig(DbConfigOption option, bool value);
+
     bool loadExtension(const QString& filename);
     void loadExtensionsFromSettings();
 

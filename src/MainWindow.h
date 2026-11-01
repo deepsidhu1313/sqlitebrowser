@@ -4,6 +4,7 @@
 #include "dbstructureqitemviewfacade.h"
 #include "sqlitedb.h"
 
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -72,6 +73,14 @@ private:
         int wal_autocheckpoint;
         int case_sensitive_like;
     } pragmaValues;
+
+    // The connection settings (see sqlite3_db_config) in the pragma tab. They are not supported if the SQLite library doesn't know them.
+    struct DbConfigValue
+    {
+        bool supported;
+        bool value;
+    };
+    std::map<DBBrowserDB::DbConfigOption, DbConfigValue> dbConfigValues;
 
     Ui::MainWindow* ui;
 

@@ -2080,6 +2080,19 @@ void MainWindow::resizeEvent(QResizeEvent*)
         d->tableBrowser()->updateRecordsetLabel();
 }
 
+// The check boxes in the pragma tab for the connection settings of sqlite3_db_config()
+static std::vector<std::pair<DBBrowserDB::DbConfigOption, QCheckBox*>> dbConfigCheckBoxes(const Ui::MainWindow* ui)
+{
+    return {
+        {DBBrowserDB::DbConfigOption::EnableTrigger, ui->checkboxDbConfigEnableTrigger},
+        {DBBrowserDB::DbConfigOption::EnableFts3Tokenizer, ui->checkboxDbConfigEnableFts3Tokenizer},
+        {DBBrowserDB::DbConfigOption::Defensive, ui->checkboxDbConfigDefensive},
+        {DBBrowserDB::DbConfigOption::DqsDml, ui->checkboxDbConfigDqsDml},
+        {DBBrowserDB::DbConfigOption::DqsDdl, ui->checkboxDbConfigDqsDdl},
+        {DBBrowserDB::DbConfigOption::TrustedSchema, ui->checkboxDbConfigTrustedSchema},
+    };
+}
+
 void MainWindow::loadPragmas()
 {
     pragmaValues.autovacuum = db.getPragma("auto_vacuum").toInt();
@@ -2100,6 +2113,13 @@ void MainWindow::loadPragmas()
     pragmaValues.user_version = db.getPragma("user_version").toInt();
     pragmaValues.wal_autocheckpoint = db.getPragma("wal_autocheckpoint").toInt();
     pragmaValues.case_sensitive_like = db.getPragma("case_sensitive_like").toInt();
+
+    for(const auto& config : dbConfigCheckBoxes(ui))
+    {
+        DbConfigValue& entry = dbConfigValues[config.first];
+        entry.value = false;
+        entry.supported = db.getDbConfig(config.first, entry.value);
+    }
 
     updatePragmaUi();
 }
@@ -2124,6 +2144,13 @@ void MainWindow::updatePragmaUi()
     ui->spinPragmaUserVersion->setValue(pragmaValues.user_version);
     ui->spinPragmaWalAutoCheckpoint->setValue(pragmaValues.wal_autocheckpoint);
     ui->checkboxPragmaCaseSensitiveLike->setChecked(pragmaValues.case_sensitive_like);
+
+    for(const auto& config : dbConfigCheckBoxes(ui))
+    {
+        const DbConfigValue& entry = dbConfigValues[config.first];
+        config.second->setChecked(entry.value);
+        config.second->setEnabled(entry.supported);
+    }
 }
 
 void MainWindow::savePragmas()
@@ -2160,6 +2187,14 @@ void MainWindow::savePragmas()
     db.setPragma("user_version", ui->spinPragmaUserVersion->value(), pragmaValues.user_version);
     db.setPragma("wal_autocheckpoint", ui->spinPragmaWalAutoCheckpoint->value(), pragmaValues.wal_autocheckpoint);
     db.setPragma("case_sensitive_like", ui->checkboxPragmaCaseSensitiveLike->isChecked(), pragmaValues.case_sensitive_like);
+
+    for(const auto& config : dbConfigCheckBoxes(ui))
+    {
+        DbConfigValue& entry = dbConfigValues[config.first];
+        const bool checked = config.second->isChecked();
+        if(entry.supported && entry.value != checked && db.setDbConfig(config.first, checked))
+            entry.value = checked;
+    }
     isProjectModified = true;
 
     updatePragmaUi();

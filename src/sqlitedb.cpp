@@ -2273,6 +2273,65 @@ bool DBBrowserDB::setPragma(const std::string& pragma, int value, int& originalv
     return false;
 }
 
+// Maps an option to the SQLITE_DBCONFIG_* code. The constants were added to SQLite over time, so we can't rely on all of them being
+// available when building against an old SQLite header. 0 is not a valid code and means that the option is not available.
+static int dbConfigCode(DBBrowserDB::DbConfigOption option)
+{
+    switch(option)
+    {
+#ifdef SQLITE_DBCONFIG_ENABLE_TRIGGER
+    case DBBrowserDB::DbConfigOption::EnableTrigger:        return SQLITE_DBCONFIG_ENABLE_TRIGGER;
+#endif
+#ifdef SQLITE_DBCONFIG_ENABLE_FTS3_TOKENIZER
+    case DBBrowserDB::DbConfigOption::EnableFts3Tokenizer:  return SQLITE_DBCONFIG_ENABLE_FTS3_TOKENIZER;
+#endif
+#ifdef SQLITE_DBCONFIG_DEFENSIVE
+    case DBBrowserDB::DbConfigOption::Defensive:            return SQLITE_DBCONFIG_DEFENSIVE;
+#endif
+#ifdef SQLITE_DBCONFIG_DQS_DML
+    case DBBrowserDB::DbConfigOption::DqsDml:               return SQLITE_DBCONFIG_DQS_DML;
+#endif
+#ifdef SQLITE_DBCONFIG_DQS_DDL
+    case DBBrowserDB::DbConfigOption::DqsDdl:               return SQLITE_DBCONFIG_DQS_DDL;
+#endif
+#ifdef SQLITE_DBCONFIG_TRUSTED_SCHEMA
+    case DBBrowserDB::DbConfigOption::TrustedSchema:        return SQLITE_DBCONFIG_TRUSTED_SCHEMA;
+#endif
+    default:
+        return 0;
+    }
+}
+
+bool DBBrowserDB::getDbConfig(DbConfigOption option, bool& value) const
+{
+    const int code = dbConfigCode(option);
+    if(!_db || code == 0)
+        return false;
+
+    // A negative value queries the setting without changing it
+    int current = 0;
+    if(sqlite3_db_config(_db, code, -1, &current) != SQLITE_OK)
+        return false;
+
+    value = current != 0;
+    return true;
+}
+
+bool DBBrowserDB::setDbConfig(DbConfigOption option, bool value)
+{
+    const int code = dbConfigCode(option);
+    if(!_db || code == 0)
+        return false;
+
+    waitForDbRelease();
+
+    int current = 0;
+    if(sqlite3_db_config(_db, code, value ? 1 : 0, &current) != SQLITE_OK)
+        return false;
+
+    return (current != 0) == value;
+}
+
 bool DBBrowserDB::loadExtension(const QString& filePath)
 {
     waitForDbRelease();
