@@ -127,6 +127,7 @@ void PreferencesDialog::loadSettings()
     ui->txtBlob->setText(Settings::getValue("databrowser", "blob_text").toString());
     ui->editFilterEscape->setText(Settings::getValue("databrowser", "filter_escape").toString());
     ui->spinFilterDelay->setValue(Settings::getValue("databrowser", "filter_delay").toInt());
+    ui->checkFilterSplitWords->setChecked(Settings::getValue("databrowser", "filter_split_words").toBool());
 
     ui->treeSyntaxHighlighting->resizeColumnToContents(1);
 
@@ -223,6 +224,7 @@ void PreferencesDialog::saveSettings(bool accept)
     Settings::setValue("databrowser", "blob_text", ui->txtBlob->text());
     Settings::setValue("databrowser", "filter_escape", ui->editFilterEscape->text());
     Settings::setValue("databrowser", "filter_delay", ui->spinFilterDelay->value());
+    Settings::setValue("databrowser", "filter_split_words", ui->checkFilterSplitWords->isChecked());
 
     for(int i=0; i < ui->treeSyntaxHighlighting->topLevelItemCount(); ++i)
     {

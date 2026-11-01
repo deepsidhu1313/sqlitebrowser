@@ -851,8 +851,12 @@ sqlb::Query TableBrowser::buildQuery(const BrowseDataTableSettings& storedData, 
     ui->actionClearSorting->setEnabled(storedData.sortColumns.size() > 0);
 
     // Filters
+    const bool splitWords = Settings::getValue("databrowser", "filter_split_words").toBool();
     for(auto it=storedData.filterValues.cbegin();it!=storedData.filterValues.cend();++it)
-        query.where().insert({it->first, CondFormat::filterToSqlCondition(it->second, m_model->encoding())});
+    {
+        for(const std::string& condition : CondFormat::filterToSqlConditions(it->second, m_model->encoding(), splitWords))
+            query.where().insert({it->first, condition});
+    }
 
     // Global filter
     for(const auto& f : storedData.globalFilters)

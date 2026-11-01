@@ -337,6 +337,8 @@ QVariant Settings::getDefaultValue(const std::string& group, const std::string& 
             return "\\";
         if(name == "filter_delay")
             return 200;
+        if(name == "filter_split_words")
+            return false;
         if(ends_with(name, "colour"))
             return getDefaultColorValue(group, name, FollowDesktopStyle);
     }

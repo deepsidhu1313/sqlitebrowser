@@ -1398,6 +1398,23 @@ Can be set to 0 for disabling completion.</string>
               </property>
              </widget>
             </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="labelFilterSplitWords">
+              <property name="text">
+               <string>Match each word separately</string>
+              </property>
+              <property name="buddy">
+               <cstring>checkFilterSplitWords</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QCheckBox" name="checkFilterSplitWords">
+              <property name="toolTip">
+               <string>Enable this option to look for each word of a column filter separately. A filter like "red car" then finds the rows which contain both words in any order instead of only the rows which contain the exact phrase. Filters with an operator (like =, &lt;, &gt; or /regexp/) or with the % wildcard are not affected.</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>
@@ -2073,6 +2090,7 @@ Can be set to 0 for disabling completion.</string>
   <tabstop>checkCellWordWrap</tabstop>
   <tabstop>spinFilterDelay</tabstop>
   <tabstop>editFilterEscape</tabstop>
+  <tabstop>checkFilterSplitWords</tabstop>
   <tabstop>treeSyntaxHighlighting</tabstop>
   <tabstop>comboEditorFont</tabstop>
   <tabstop>spinEditorFontSize</tabstop>

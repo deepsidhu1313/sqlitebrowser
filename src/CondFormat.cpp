@@ -159,6 +159,29 @@ std::string CondFormat::filterToSqlCondition(const QString& value, const QString
     }
 }
 
+std::vector<std::string> CondFormat::filterToSqlConditions(const QString& value, const QString& encoding, bool split_words)
+{
+    const std::string condition = filterToSqlCondition(value, encoding);
+    if(condition.empty())
+        return {};
+
+    // Only the default operator is split into words. All the other operators and the filters with wildcards of the user are left alone.
+    if(split_words && condition.compare(0, 5, "LIKE ") == 0 && !value.contains('%'))
+    {
+        const QStringList words = value.simplified().split(' ');
+        if(words.size() > 1)
+        {
+            // Put the wildcards around each word. This makes sure a word is not taken for an operator, e.g. when it starts with a >.
+            std::vector<std::string> conditions;
+            for(const QString& word : words)
+                conditions.push_back(filterToSqlCondition("%" + word + "%", encoding));
+            return conditions;
+        }
+    }
+
+    return {condition};
+}
+
 Qt::AlignmentFlag CondFormat::alignmentFlag() const
 {
     switch (m_align) {

@@ -203,7 +203,13 @@ int SqliteTableModel::columnCount(const QModelIndex&) const
 
 size_t SqliteTableModel::filterCount() const
 {
-    return m_query.where().size();
+    // There can be more than one condition for a column but this is the number of columns which are filtered. The conditions
+    // of a column are next to each other.
+    size_t count = 0;
+    const auto& where = m_query.where();
+    for(auto it = where.cbegin(); it != where.cend(); it = where.equal_range(it->first).second)
+        count++;
+    return count;
 }
 
 // Convert a number to string using the Unicode superscript characters
@@ -832,13 +838,12 @@ void SqliteTableModel::setCondFormats(const bool isRowIdFormat, size_t column, c
 
 void SqliteTableModel::updateFilter(const std::string& column, const QString& value)
 {
-    std::string whereClause = CondFormat::filterToSqlCondition(value, m_encoding);
+    const std::vector<std::string> whereClauses = CondFormat::filterToSqlConditions(value, m_encoding, Settings::getValue("databrowser", "filter_split_words").toBool());
 
-    // If the value was set to an empty string remove any filter for this column. Otherwise insert a new filter rule or replace the old one if there is already one
-       if(whereClause.empty())
-        m_query.where().erase(column);
-    else
-        m_query.where()[column] = whereClause;
+    // Remove any filter for this column. If the value was set to an empty string that is all there is to do. Otherwise insert the new filter rules.
+    m_query.where().erase(column);
+    for(const std::string& whereClause : whereClauses)
+        m_query.where().insert({column, whereClause});
 
     // Build the new query
     updateAndRunQuery();

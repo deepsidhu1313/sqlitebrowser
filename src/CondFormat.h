@@ -6,6 +6,9 @@
 #include <QFont>
 #include <QModelIndex>
 
+#include <string>
+#include <vector>
+
 class QAbstractTableModel;
 
 // Conditional formatting for given format to table cells based on a specified condition.
@@ -44,6 +47,12 @@ public:
                const QString& encoding = QString());
 
     static std::string filterToSqlCondition(const QString& value, const QString& encoding = QString());
+
+    // Returns the conditions for a column filter which all have to be met. Normally this is the single condition of filterToSqlCondition()
+    // or none at all if the filter is empty. If split_words is set and the filter is a plain text filter, i.e. neither a comparison, a range
+    // or a regular expression nor containing any % wildcards, which consists of more than one word, there is one condition per word. This
+    // way the rows are found which contain all the words in any order instead of only the rows which contain the phrase.
+    static std::vector<std::string> filterToSqlConditions(const QString& value, const QString& encoding = QString(), bool split_words = false);
 
 private:
     std::string m_sqlCondition;
