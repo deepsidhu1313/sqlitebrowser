@@ -84,6 +84,7 @@ void PreferencesDialog::loadSettings()
     ui->locationEdit->setText(QDir::toNativeSeparators(Settings::getValue("db", "defaultlocation").toString()));
     ui->checkPromptSQLTabsInNewProject->setChecked(Settings::getValue("General", "promptsqltabsinnewproject").toBool());
     ui->checkRecentFileShortcuts->setChecked(Settings::getValue("General", "recentfileshortcuts").toBool());
+    ui->checkComboWheelNeedsFocus->setChecked(Settings::getValue("General", "combowheelneedsfocus").toBool());
     ui->checkUpdates->setChecked(Settings::getValue("checkversion", "enabled").toBool());
 
     ui->checkHideSchemaLinebreaks->setChecked(Settings::getValue("db", "hideschemalinebreaks").toBool());
@@ -274,6 +275,7 @@ void PreferencesDialog::saveSettings(bool accept)
     Settings::setValue("General", "fontsize", ui->spinGeneralFontSize->value());
     Settings::setValue("General", "maxRecentFiles", ui->spinMaxRecentFiles->value());
     Settings::setValue("General", "recentfileshortcuts", ui->checkRecentFileShortcuts->isChecked());
+    Settings::setValue("General", "combowheelneedsfocus", ui->checkComboWheelNeedsFocus->isChecked());
     Settings::setValue("General", "promptsqltabsinnewproject", ui->checkPromptSQLTabsInNewProject->isChecked());
 
     m_proxyDialog->saveSettings();

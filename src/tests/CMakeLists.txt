@@ -123,3 +123,20 @@ set(TESTCACHE_HDR
 add_executable(test-cache ${TESTCACHE_HDR} ${TESTCACHE_SRC})
 target_link_libraries(test-cache ${QT_MAJOR}::Test)
 add_test(NAME test-cache COMMAND $<TARGET_FILE:test-cache>)
+
+# test combo wheel filter
+
+set(TESTCOMBOWHEELFILTER_SRC
+    TestComboWheelFilter.cpp
+    ../ComboWheelFilter.cpp
+)
+
+set(TESTCOMBOWHEELFILTER_HDR
+    TestComboWheelFilter.h
+    ../ComboWheelFilter.h
+)
+
+add_executable(test-combo-wheel-filter ${TESTCOMBOWHEELFILTER_HDR} ${TESTCOMBOWHEELFILTER_SRC})
+target_link_libraries(test-combo-wheel-filter ${QT_MAJOR}::Test ${QT_MAJOR}::Widgets)
+add_test(NAME test-combo-wheel-filter COMMAND $<TARGET_FILE:test-combo-wheel-filter>)
+set_tests_properties(test-combo-wheel-filter PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

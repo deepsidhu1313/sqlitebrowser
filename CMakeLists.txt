@@ -144,6 +144,7 @@ target_sources(${PROJECT_NAME}
     src/FileDialog.h
     src/ColumnDisplayFormatDialog.h
     src/FilterLineEdit.h
+    src/ComboWheelFilter.h
     src/GlobalFilter.h
     src/ForeignKeyEditorDelegate.h
     src/PlotDock.h
@@ -198,6 +199,7 @@ target_sources(${PROJECT_NAME}
     src/FileDialog.cpp
     src/ColumnDisplayFormatDialog.cpp
     src/FilterLineEdit.cpp
+    src/ComboWheelFilter.cpp
     src/GlobalFilter.cpp
     src/ForeignKeyEditorDelegate.cpp
     src/PlotDock.cpp

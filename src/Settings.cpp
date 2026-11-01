@@ -290,6 +290,10 @@ QVariant Settings::getDefaultValue(const std::string& group, const std::string& 
     if(group == "General" && name == "promptsqltabsinnewproject")
         return true;
 
+    // General/combowheelneedsfocus
+    if(group == "General" && name == "combowheelneedsfocus")
+        return false;
+
     // checkversion group?
     if(group == "checkversion")
     {

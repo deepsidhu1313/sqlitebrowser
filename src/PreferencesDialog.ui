@@ -592,6 +592,27 @@ in new project file</string>
         </widget>
        </item>
        <item row="14" column="0">
+        <widget class="QLabel" name="labelComboWheelNeedsFocus">
+         <property name="text">
+          <string>Ignore mouse wheel over
+unfocused drop-down lists</string>
+         </property>
+         <property name="buddy">
+          <cstring>checkComboWheelNeedsFocus</cstring>
+         </property>
+        </widget>
+       </item>
+       <item row="14" column="1">
+        <widget class="QCheckBox" name="checkComboWheelNeedsFocus">
+         <property name="toolTip">
+          <string>If this is turned on, turning the mouse wheel over a drop-down list only changes its selection after the list has been clicked or reached with the Tab key. This avoids changing values by accident when scrolling a window with the mouse wheel.</string>
+         </property>
+         <property name="text">
+          <string>enabled</string>
+         </property>
+        </widget>
+       </item>
+       <item row="15" column="0">
         <widget class="QLabel" name="labelUpdates">
          <property name="text">
           <string>Automatic &amp;updates</string>
@@ -601,14 +622,14 @@ in new project file</string>
          </property>
         </widget>
        </item>
-       <item row="14" column="1">
+       <item row="15" column="1">
         <widget class="QCheckBox" name="checkUpdates">
          <property name="text">
           <string>enabled</string>
          </property>
         </widget>
        </item>
-       <item row="15" column="0">
+       <item row="16" column="0">
         <widget class="QLabel" name="label_29">
          <property name="text">
           <string>Proxy</string>
@@ -618,14 +639,14 @@ in new project file</string>
          </property>
         </widget>
        </item>
-       <item row="15" column="1">
+       <item row="16" column="1">
         <widget class="QToolButton" name="buttonProxy">
          <property name="text">
           <string>Configure</string>
          </property>
         </widget>
        </item>
-       <item row="16" column="0">
+       <item row="17" column="0">
         <widget class="QLabel" name="label_16">
          <property name="text">
           <string>DB file extensions</string>
@@ -635,7 +656,7 @@ in new project file</string>
          </property>
         </widget>
        </item>
-       <item row="16" column="1">
+       <item row="17" column="1">
         <widget class="QPushButton" name="buttonManageFileExtension">
          <property name="text">
           <string>Manage</string>
@@ -2044,6 +2065,7 @@ Can be set to 0 for disabling completion.</string>
   <tabstop>toolbarStyleComboSql</tabstop>
   <tabstop>toolbarStyleComboEditCell</tabstop>
   <tabstop>checkPromptSQLTabsInNewProject</tabstop>
+  <tabstop>checkComboWheelNeedsFocus</tabstop>
   <tabstop>checkUpdates</tabstop>
   <tabstop>buttonProxy</tabstop>
   <tabstop>buttonManageFileExtension</tabstop>

@@ -12,6 +12,7 @@
 #include <QScreen>
 
 #include "Application.h"
+#include "ComboWheelFilter.h"
 #include "MainWindow.h"
 #include "RemoteNetwork.h"
 #include "Settings.h"
@@ -162,6 +163,11 @@ Application::Application(int& argc, char** argv) :
 
     // Remember default font size
     Settings::rememberDefaultFontSize(font().pointSize());
+
+    // Install the filter for the mouse wheel over drop-down lists. It is switched on and off according to the preferences
+    // when the settings are loaded.
+    m_comboWheelFilter = new ComboWheelFilter(this);
+    installEventFilter(m_comboWheelFilter);
 
     // Parse command line
     QString fileToOpen;
@@ -385,6 +391,10 @@ void Application::reloadSettings()
     QFont f = font();
     f.setPointSize(Settings::getValue("General", "fontsize").toInt());
     setFont(f);
+
+    // Mouse wheel over drop-down lists without the keyboard focus
+    if(Application* app = qobject_cast<Application*>(qApp))
+        app->m_comboWheelFilter->setActive(Settings::getValue("General", "combowheelneedsfocus").toBool());
 }
 
 // Functions for documenting the shortcuts in the user interface using native names

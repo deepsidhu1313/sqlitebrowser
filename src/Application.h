@@ -8,6 +8,7 @@ class QAction;
 class QTranslator;
 
 class MainWindow;
+class ComboWheelFilter;
 
 class Application : public QApplication
 {
@@ -36,6 +37,7 @@ private:
     MainWindow* m_mainWindow;
     QTranslator* m_translatorQt;
     QTranslator* m_translatorApp;
+    ComboWheelFilter* m_comboWheelFilter;
 };
 
 void addShortcutsTooltip(QAction* action, const QList<QKeySequence>& extraKeys = QList<QKeySequence>());
